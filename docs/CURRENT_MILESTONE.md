@@ -1,6 +1,6 @@
 # Marco atual
 
-Última atualização: 31 de agosto de 2026.
+Última atualização: 2 de setembro de 2026.
 
 ## Fase
 
@@ -8,7 +8,7 @@ Ambiente educacional.
 
 ## Marco
 
-Fundação documental e preparação para o primeiro incremento técnico.
+Preparação do ambiente técnico reproduzível.
 
 ## Concluído
 
@@ -18,20 +18,20 @@ Fundação documental e preparação para o primeiro incremento técnico.
 - modelo multiempresa e papéis iniciais definidos;
 - fases educacional, demonstração, piloto e produção descritas;
 - compromissos iniciais de privacidade e LGPD registrados;
-- documentação permanente e fluxo entre computadores estruturados.
+- documentação permanente e fluxo entre computadores estruturados;
+- stack inicial analisada, aceita e registrada no ADR `docs/adr/0001-stack-inicial.md`.
 
 ## Objetivo atual
 
-Escolher conscientemente a base técnica e preparar um ambiente local mínimo e reproduzível, entendendo a função de cada ferramenta antes de iniciar as regras de negócio.
+Preparar nos dois computadores um ambiente local mínimo e reproduzível para a stack escolhida, entendendo a função de cada ferramenta antes de iniciar as regras de negócio.
 
 ## Próximo passo recomendado
 
-Definir e registrar a stack inicial do ambiente educacional. A escolha ainda não está registrada como decisão do projeto e não deve ser presumida a partir de conversas anteriores.
+No computador que será usado na próxima sessão, sincronizar o repositório, confirmar o contexto e preparar Node.js 24 LTS e Docker. Depois, criar de forma guiada o esqueleto mínimo do backend NestJS.
 
 ## Pendências próximas
 
-- decidir a stack inicial;
-- registrar a primeira decisão arquitetural, se a escolha envolver alternativas relevantes;
+- reproduzir as versões das ferramentas nos dois computadores;
 - criar o esqueleto mínimo da aplicação;
 - configurar a primeira verificação automatizada;
 - planejar o primeiro incremento vertical do domínio;
