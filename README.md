@@ -177,3 +177,12 @@ Compromissos iniciais:
 - preparar um procedimento de resposta a incidentes de segurança.
 
 A conformidade com a LGPD não será considerada garantida apenas pela implementação técnica. Antes do piloto, o produto e os processos da empresa deverão passar por revisão jurídica e operacional adequada.
+
+## Documentação do projeto
+
+- [Contexto e glossário do domínio](CONTEXT.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Marco atual](docs/CURRENT_MILESTONE.md)
+- [Fluxo de trabalho em mais de um computador](docs/WORKFLOW.md)
+- [Decisões arquiteturais](docs/adr/README.md)
+- [Privacidade e proteção de dados](docs/privacy/README.md)
