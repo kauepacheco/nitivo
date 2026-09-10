@@ -1,8 +1,9 @@
 # Aplicação do Nitivo
 
-Monólito modular do Nitivo: API NestJS, interface React/Vite e PostgreSQL. O
-primeiro incremento permite ao operador provisionar uma lavação, ao proprietário
-definir sua senha e administrar um catálogo persistido e isolado por tenant.
+Monólito modular do Nitivo: API NestJS, interface React/Vite e PostgreSQL. Os
+dois primeiros incrementos permitem ao operador provisionar uma lavação, ao
+proprietário definir sua senha, administrar um catálogo persistido e convidar ou
+revogar funcionários sem misturar identidades e vínculos entre tenants.
 
 ## Requisitos
 
@@ -57,6 +58,18 @@ O comando grava uma única vez o link privado de definição de senha, válido p
 Entregue o conteúdo por um canal previamente conferido e remova o arquivo depois.
 Não copie o link para logs, issues ou commits. Os exemplos acima são fictícios.
 
+## Acesso de funcionários
+
+O proprietário cria o convite na seção **Equipe da lavação** e entrega
+manualmente o link por um canal previamente conferido. O link vale por 24 horas,
+funciona uma única vez e seu segredo é armazenado somente como hash. Uma pessoa
+nova cria a própria senha; uma pessoa que já possui conta precisa entrar nessa
+conta para aceitar, sem redefinir a senha global.
+
+Revogar o acesso encerra somente o vínculo com aquela lavação. A autorização
+revalida os vínculos ativos em cada operação, de modo que a revogação vale para
+uma sessão já aberta e não afeta o acesso da pessoa a outra lavação.
+
 ## Execução
 
 Para gerar a interface e a API e servi-las na mesma origem:
@@ -97,4 +110,6 @@ npm run test:browser
 ```
 
 As decisões da stack estão no [ADR 0001](../docs/adr/0001-stack-inicial.md) e o
-escopo do incremento está na [issue #2](https://github.com/kauepacheco/nitivo/issues/2).
+escopo dos incrementos está nas issues
+[#2](https://github.com/kauepacheco/nitivo/issues/2) e
+[#3](https://github.com/kauepacheco/nitivo/issues/3).

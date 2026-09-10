@@ -22,7 +22,12 @@ test.beforeAll(async () => {
   baseUrl = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['dist/main.js'], {
     cwd: process.cwd(),
-    env: { ...process.env, PORT: String(port), NODE_ENV: 'test' },
+    env: {
+      ...process.env,
+      PORT: String(port),
+      APP_URL: baseUrl,
+      NODE_ENV: 'test',
+    },
     stdio: 'pipe',
   });
   await waitForHealth(baseUrl, server);
@@ -105,4 +110,78 @@ test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular',
   await expect(page.getByText('Lavagem completa')).toBeVisible();
   await expect(page.getByText('90 min · Ativo')).toBeVisible();
   await expect(page.getByText('R$ 75,00')).toBeVisible();
+});
+
+test('proprietário convida e revoga uma funcionária pela interface', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const outputFile = join(tmpdir(), `nitivo-team-link-${randomUUID()}.txt`);
+  execFileSync(
+    process.execPath,
+    [
+      '--require',
+      'ts-node/register',
+      'src/scripts/provision-owner.ts',
+      '--car-wash-name',
+      'Lavação Horizonte',
+      '--slug',
+      'lavacao-horizonte',
+      '--owner-email',
+      'dona.horizonte@example.test',
+      '--output-file',
+      outputFile,
+    ],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, APP_URL: baseUrl },
+      encoding: 'utf8',
+    },
+  );
+  const setupLink = readFileSync(outputFile, 'utf8').trim();
+  unlinkSync(outputFile);
+  await page.goto(setupLink);
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Definir senha' }).click();
+  await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await page
+    .getByLabel('E-mail da pessoa')
+    .fill('funcionaria.horizonte@example.test');
+  await page.getByRole('button', { name: 'Criar convite' }).click();
+  const invitationUrl = await page.getByLabel('Link privado').inputValue();
+  expect(invitationUrl).toContain('/accept-invitation?token=');
+
+  await page.getByRole('button', { name: 'Sair' }).click();
+  await page.goto(invitationUrl);
+  await expect(
+    page.getByRole('heading', { name: 'Aceite o convite' }),
+  ).toBeVisible();
+  await page.getByLabel('Crie sua senha').fill('Senha-ficticia-456!');
+  await page.getByRole('button', { name: 'Aceitar convite' }).click();
+  await page.getByLabel('E-mail').fill('funcionaria.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-456!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Acesso de funcionário' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Novo serviço' }),
+  ).not.toBeVisible();
+
+  await page.getByRole('button', { name: 'Sair' }).click();
+  await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('button', { name: 'Revogar acesso' }).click();
+  await expect(page.getByText('Acesso revogado.')).toBeVisible();
+  await page.getByRole('button', { name: 'Sair' }).click();
+
+  await page.getByLabel('E-mail').fill('funcionaria.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-456!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(page.getByText('E-mail ou senha inválidos')).toBeVisible();
 });

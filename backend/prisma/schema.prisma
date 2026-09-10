@@ -21,22 +21,43 @@ enum AccessTokenPurpose {
 }
 
 model CarWash {
-  id          String            @id @default(cuid())
-  name        String
-  slug        String            @unique
-  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
-  memberships Membership[]
-  services    ServiceOffering[]
+  id                  String               @id @default(cuid())
+  name                String
+  slug                String               @unique
+  createdAt           DateTime             @default(now()) @db.Timestamptz(3)
+  memberships         Membership[]
+  services            ServiceOffering[]
+  employeeInvitations EmployeeInvitation[]
 }
 
 model User {
-  id           String        @id @default(cuid())
-  email        String        @unique
-  passwordHash String?
-  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
-  memberships  Membership[]
-  accessTokens AccessToken[]
-  sessions     Session[]
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash        String?
+  createdAt           DateTime             @default(now()) @db.Timestamptz(3)
+  memberships         Membership[]
+  accessTokens        AccessToken[]
+  sessions            Session[]
+  invitationsReceived EmployeeInvitation[] @relation("InvitationRecipient")
+  invitationsSent     EmployeeInvitation[] @relation("InvitationSender")
+}
+
+model EmployeeInvitation {
+  id              String    @id @default(cuid())
+  carWashId       String
+  email           String
+  invitedUserId   String?
+  invitedByUserId String
+  tokenHash       String    @unique
+  expiresAt       DateTime  @db.Timestamptz(3)
+  consumedAt      DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  carWash         CarWash   @relation(fields: [carWashId], references: [id], onDelete: Cascade)
+  invitedUser     User?     @relation("InvitationRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  invitedByUser   User      @relation("InvitationSender", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([carWashId, consumedAt, expiresAt])
+  @@index([email, consumedAt])
 }
 
 model Membership {

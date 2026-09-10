@@ -1,18 +1,18 @@
 # Marco atual
 
-Última atualização: 9 de setembro de 2026.
+Última atualização: 10 de setembro de 2026.
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. O primeiro
-incremento vertical foi implementado; ainda não há ambiente publicado nem uso
-de dados reais.
+Construção e validação do primeiro piloto comercial iniciadas. Os dois primeiros
+incrementos verticais foram implementados; ainda não há ambiente publicado nem
+uso de dados reais.
 
 ## Marco
 
-Ticket 1 do piloto, [issue #2](https://github.com/kauepacheco/nitivo/issues/2):
-provisionamento assistido, acesso do proprietário e cadastro/listagem de serviço
-persistido pela interface, com isolamento entre lavações.
+Ticket 2 do piloto, [issue #3](https://github.com/kauepacheco/nitivo/issues/3):
+convites privados de funcionários, aceite por pessoas novas ou com conta
+existente e revogação isolada por lavação.
 
 ## Concluído
 
@@ -53,25 +53,34 @@ persistido pela interface, com isolamento entre lavações.
 - contratos OpenAPI, ambiente PostgreSQL local por Docker Compose e instruções
   reproduzíveis registrados no README da aplicação;
 - dependências auditadas sem vulnerabilidades conhecidas no registro npm.
+- proprietário convida e revoga funcionários pela interface, com vínculo
+  revalidado na operação seguinte e sem excluir a identidade global;
+- convite de funcionário válido por 24 horas, armazenado somente como hash,
+  limitado por tentativas e consumido atomicamente uma única vez;
+- pessoa nova define a própria senha e pessoa com conta existente aceita após
+  autenticar, sem redefinir senha ou perder vínculo com outra lavação;
+- testes HTTP com PostgreSQL real cobrem dois tenants, restrição do funcionário,
+  expiração e revogação; jornada móvel cobre convite, aceite, entrada e revogação.
 
 ## Objetivo atual
 
-O primeiro ticket está implementado localmente e validado com dados fictícios.
+Os dois primeiros tickets estão implementados localmente e validados com dados
+fictícios.
 O produto ainda não está pronto para demonstração remota ou piloto: faltam os
 incrementos seguintes, implantação e critérios operacionais e de privacidade.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação o ticket 2,
-[issue #3](https://github.com/kauepacheco/nitivo/issues/3): convidar funcionários,
-aceitar vínculos e revogá-los sem afetar vínculos da pessoa em outras lavações.
+Implementar em nova solicitação o ticket 3,
+[issue #4](https://github.com/kauepacheco/nitivo/issues/4): recuperação assistida
+de acesso por link temporário, com revogação das sessões antigas.
 
 ## Pendências de execução
 
-- aguardar nova solicitação antes de iniciar o ticket 2;
+- aguardar nova solicitação antes de iniciar o ticket 3;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar os tickets 2 a 22 em sequência;
+- implementar e verificar os tickets 3 a 22 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 - preservar as alterações locais anteriores no backend, catálogo e skills.

@@ -19,6 +19,17 @@ type ServiceOffering = {
   active: boolean;
 };
 
+type InvitationDetails = {
+  carWashName: string;
+  email: string;
+  existingAccount: boolean;
+};
+
+type Team = {
+  members: Array<{ id: string; email: string; status: 'ACTIVE' }>;
+  invitations: Array<{ id: string; email: string; expiresAt: string }>;
+};
+
 export function App() {
   const setupToken = new URLSearchParams(window.location.search).get('token');
   const [session, setSession] = useState<Session | null>(null);
@@ -41,10 +52,30 @@ export function App() {
   if (window.location.pathname === '/set-password') {
     return <SetPassword token={setupToken} />;
   }
+  if (window.location.pathname === '/accept-invitation') {
+    return (
+      <AcceptInvitation
+        token={setupToken}
+        session={session}
+        onLogin={setSession}
+      />
+    );
+  }
   if (!session) {
     return <Login onLogin={setSession} />;
   }
-  return <Catalog session={session} onLogout={() => setSession(null)} />;
+  const ownerMembership = session.user.memberships.find(
+    (membership) => membership.role === 'OWNER',
+  );
+  return ownerMembership ? (
+    <OwnerWorkspace
+      session={session}
+      membership={ownerMembership}
+      onLogout={() => setSession(null)}
+    />
+  ) : (
+    <EmployeeHome session={session} onLogout={() => setSession(null)} />
+  );
 }
 
 function SetPassword({ token }: { token: string | null }) {
@@ -140,7 +171,100 @@ function Login({ onLogin }: { onLogin: (session: Session) => void }) {
   );
 }
 
-function Catalog({
+function AcceptInvitation({
+  token,
+  session,
+  onLogin,
+}: {
+  token: string | null;
+  session: Session | null;
+  onLogin: (session: Session) => void;
+}) {
+  const [details, setDetails] = useState<InvitationDetails | null>(null);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (!token) {
+      setMessage('Link inválido.');
+      return;
+    }
+    void api<InvitationDetails>(`/api/team/invitations/${token}`)
+      .then(setDetails)
+      .catch((error) => setMessage(errorMessage(error)));
+  }, [token]);
+
+  async function acceptNew(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await api(`/api/team/invitations/${token}/accept-new`, {
+        method: 'POST',
+        body: JSON.stringify({ password: form.get('password') }),
+      });
+      window.history.replaceState({}, '', '/');
+      window.location.reload();
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  async function acceptExisting() {
+    try {
+      await api(`/api/team/invitations/${token}/accept-existing`, {
+        method: 'POST',
+        headers: { 'x-csrf-token': session!.csrfToken },
+      });
+      window.history.replaceState({}, '', '/');
+      window.location.reload();
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  return (
+    <main className="center-card">
+      <Brand />
+      <h1>Aceite o convite</h1>
+      {details ? (
+        <>
+          <p>
+            Você foi convidado para trabalhar em{' '}
+            <strong>{details.carWashName}</strong> usando {details.email}.
+          </p>
+          {details.existingAccount ? (
+            session ? (
+              <button type="button" onClick={() => void acceptExisting()}>
+                Aceitar com esta conta
+              </button>
+            ) : (
+              <>
+                <p>Entre na conta convidada para confirmar o novo vínculo.</p>
+                <Login onLogin={onLogin} />
+              </>
+            )
+          ) : (
+            <form onSubmit={acceptNew}>
+              <label>
+                Crie sua senha
+                <input
+                  name="password"
+                  type="password"
+                  minLength={12}
+                  required
+                  autoComplete="new-password"
+                />
+              </label>
+              <button type="submit">Aceitar convite</button>
+            </form>
+          )}
+        </>
+      ) : null}
+      <Status message={message} />
+    </main>
+  );
+}
+
+function EmployeeHome({
   session,
   onLogout,
 }: {
@@ -148,6 +272,34 @@ function Catalog({
   onLogout: () => void;
 }) {
   const membership = session.user.memberships[0];
+  return (
+    <main className="app-shell">
+      <AppHeader
+        membership={membership}
+        session={session}
+        onLogout={onLogout}
+      />
+      <section className="intro">
+        <span className="eyebrow">Equipe</span>
+        <h1>Acesso de funcionário</h1>
+        <p>
+          Seu acesso individual está ativo. A agenda será disponibilizada no
+          próximo incremento do piloto.
+        </p>
+      </section>
+    </main>
+  );
+}
+
+function OwnerWorkspace({
+  session,
+  membership,
+  onLogout,
+}: {
+  session: Session;
+  membership: Membership;
+  onLogout: () => void;
+}) {
   const [services, setServices] = useState<ServiceOffering[]>([]);
   const [message, setMessage] = useState('');
 
@@ -186,29 +338,13 @@ function Catalog({
     }
   }
 
-  async function logout() {
-    await api('/api/auth/logout', {
-      method: 'POST',
-      headers: { 'x-csrf-token': session.csrfToken },
-    });
-    onLogout();
-  }
-
   return (
     <main className="app-shell">
-      <header>
-        <Brand />
-        <div>
-          <strong>{membership.carWashName}</strong>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => void logout()}
-          >
-            Sair
-          </button>
-        </div>
-      </header>
+      <AppHeader
+        membership={membership}
+        session={session}
+        onLogout={onLogout}
+      />
       <section className="intro">
         <span className="eyebrow">Catálogo</span>
         <h1>Serviços da sua lavação</h1>
@@ -276,7 +412,157 @@ function Catalog({
           )}
         </section>
       </div>
+      <TeamManagement session={session} membership={membership} />
     </main>
+  );
+}
+
+function AppHeader({
+  membership,
+  session,
+  onLogout,
+}: {
+  membership: Membership;
+  session: Session;
+  onLogout: () => void;
+}) {
+  async function logout() {
+    await api('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'x-csrf-token': session.csrfToken },
+    });
+    onLogout();
+  }
+  return (
+    <header>
+      <Brand />
+      <div>
+        <strong>{membership.carWashName}</strong>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => void logout()}
+        >
+          Sair
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function TeamManagement({
+  session,
+  membership,
+}: {
+  session: Session;
+  membership: Membership;
+}) {
+  const [team, setTeam] = useState<Team>({ members: [], invitations: [] });
+  const [invitationUrl, setInvitationUrl] = useState('');
+  const [message, setMessage] = useState('');
+
+  async function loadTeam() {
+    const currentTeam = await api<Team>(
+      `/api/car-washes/${membership.carWashId}/team`,
+    );
+    setTeam(currentTeam);
+  }
+
+  useEffect(() => {
+    void loadTeam().catch((error) => setMessage(errorMessage(error)));
+  }, [membership.carWashId]);
+
+  async function invite(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      const invitation = await api<{ invitationUrl: string }>(
+        `/api/car-washes/${membership.carWashId}/team/invitations`,
+        {
+          method: 'POST',
+          headers: { 'x-csrf-token': session.csrfToken },
+          body: JSON.stringify({ email: form.get('email') }),
+        },
+      );
+      setInvitationUrl(invitation.invitationUrl);
+      setMessage('Convite criado. Compartilhe o link por um canal conferido.');
+      formElement.reset();
+      await loadTeam();
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  async function revoke(membershipId: string) {
+    try {
+      await api(
+        `/api/car-washes/${membership.carWashId}/team/members/${membershipId}`,
+        {
+          method: 'DELETE',
+          headers: { 'x-csrf-token': session.csrfToken },
+        },
+      );
+      setMessage('Acesso revogado.');
+      await loadTeam();
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  return (
+    <section className="team-section">
+      <div className="intro compact">
+        <span className="eyebrow">Acessos</span>
+        <h1>Equipe da lavação</h1>
+        <p>Convites são privados, temporários e funcionam uma única vez.</p>
+      </div>
+      <div className="columns">
+        <section className="panel">
+          <h2>Convidar funcionário</h2>
+          <form onSubmit={invite}>
+            <label>
+              E-mail da pessoa
+              <input name="email" type="email" required autoComplete="email" />
+            </label>
+            <button type="submit">Criar convite</button>
+          </form>
+          {invitationUrl ? (
+            <label className="private-link">
+              Link privado
+              <input value={invitationUrl} readOnly />
+            </label>
+          ) : null}
+          <Status message={message} />
+        </section>
+        <section className="panel">
+          <h2>Funcionários ativos</h2>
+          {team.members.length === 0 ? (
+            <p className="empty">Nenhum funcionário ativo.</p>
+          ) : (
+            <ul className="service-list">
+              {team.members.map((member) => (
+                <li key={member.id}>
+                  <strong>{member.email}</strong>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => void revoke(member.id)}
+                  >
+                    Revogar acesso
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {team.invitations.length > 0 ? (
+            <p className="pending">
+              {team.invitations.length} convite(s) pendente(s).
+            </p>
+          ) : null}
+        </section>
+      </div>
+    </section>
   );
 }
 

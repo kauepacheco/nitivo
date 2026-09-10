@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { IdentityAccessModule } from './identity-access/identity-access.module';
 import { ServiceCatalogModule } from './service-catalog/service-catalog.module';
+import { TeamAccessModule } from './team-access/team-access.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ServiceCatalogModule } from './service-catalog/service-catalog.module';
     DatabaseModule,
     IdentityAccessModule,
     ServiceCatalogModule,
+    TeamAccessModule,
   ],
   controllers: [AppController],
   providers: [AppService],

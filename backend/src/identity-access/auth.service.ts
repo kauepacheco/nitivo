@@ -21,6 +21,7 @@ import {
 } from './auth.constants';
 import { AuthenticatedSession } from './auth.types';
 import { hashSecret } from './hash-secret';
+import { hashPassword } from './password-hash';
 
 @Injectable()
 export class AuthService {
@@ -52,12 +53,7 @@ export class AuthService {
       throw new BadRequestException('Link inválido, expirado ou já utilizado');
     }
 
-    const passwordHash = await argon2.hash(password, {
-      type: argon2.argon2id,
-      memoryCost: 19_456,
-      timeCost: 2,
-      parallelism: 1,
-    });
+    const passwordHash = await hashPassword(password);
 
     await this.prisma.$transaction(async (transaction) => {
       const consumed = await transaction.accessToken.updateMany({

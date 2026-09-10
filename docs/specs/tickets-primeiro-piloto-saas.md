@@ -1,6 +1,6 @@
 # Tickets do primeiro piloto
 
-Status: divisão aprovada pelo proprietário e 22 tickets publicados e verificados em 9 de setembro de 2026, nas issues #2 a #23, com o rótulo ready-for-agent. O ticket 1 foi implementado e validado localmente; os demais aguardam solicitação. A aprovação desta publicação não autoriza contratação.
+Status: divisão aprovada pelo proprietário e 22 tickets publicados e verificados em 9 de setembro de 2026, nas issues #2 a #23, com o rótulo ready-for-agent. Os tickets 1 e 2 foram implementados e validados localmente; os demais aguardam solicitação. A aprovação desta publicação não autoriza contratação.
 
 Fonte: especificação do primeiro piloto e issue https://github.com/kauepacheco/nitivo/issues/1, sem comentários na consulta. A numeração das seções preserva a proposta aprovada; os links GitHub identificam as issues publicadas. A issue de origem foi preservada, incluindo corpo, título, estado e rótulos.
 
@@ -31,8 +31,8 @@ As dependências representam entregas necessárias; dados fictícios permitem ve
 
 **Histórias da especificação:** 22, 23, 55, 56, 57, 67.
 
-- [ ] Convite de uso único e com validade; aceitar com conta existente exige sua autenticação e não redefine senha.
-- [ ] Pessoa com vínculos em duas lavações mantém identidade e acesso à outra; catálogo e configurações negam mutações por funcionário. Agenda será acrescentada no ticket 6.
+- [x] Convite de uso único e com validade; aceitar com conta existente exige sua autenticação e não redefine senha.
+- [x] Pessoa com vínculos em duas lavações mantém identidade e acesso à outra; catálogo nega mutações por funcionário. Configurações serão acrescentadas no ticket 5 e agenda no ticket 6.
 
 ## 3. Recuperar acesso com assistência
 
