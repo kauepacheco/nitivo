@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { IdentityAccessModule } from './identity-access/identity-access.module';
 import { ServiceCatalogModule } from './service-catalog/service-catalog.module';
+import { SchedulingModule } from './scheduling/scheduling.module';
 import { TeamAccessModule } from './team-access/team-access.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { TeamAccessModule } from './team-access/team-access.module';
     DatabaseModule,
     IdentityAccessModule,
     ServiceCatalogModule,
+    SchedulingModule,
     TeamAccessModule,
   ],
   controllers: [AppController],

@@ -106,13 +106,13 @@ test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular',
   await expect(
     page.getByRole('heading', { name: 'Serviços da sua lavação' }),
   ).toBeVisible();
-  await page.getByLabel('Nome').fill('Lavagem completa');
+  await page.getByLabel('Nome', { exact: true }).fill('Lavagem completa');
   await page.getByLabel('Preço (R$)').fill('75.00');
   await page.getByLabel('Duração (min)').fill('90');
   await page.getByRole('button', { name: 'Cadastrar serviço' }).click();
 
   await expect(page.getByText('Serviço cadastrado.')).toBeVisible();
-  await expect(page.getByText('Lavagem completa')).toBeVisible();
+  await expect(page.getByText('Lavagem completa', { exact: true })).toBeVisible();
   await expect(page.getByText('90 min · Ativo')).toBeVisible();
   await expect(page.getByText('R$ 75,00')).toBeVisible();
 });
@@ -142,11 +142,11 @@ test('cliente consulta serviços ativos e contato da lavação no celular', asyn
     page.getByText('Informações públicas atualizadas.'),
   ).toBeVisible();
 
-  await page.getByLabel('Nome').fill('Lavagem completa');
+  await page.getByLabel('Nome', { exact: true }).fill('Lavagem completa');
   await page.getByLabel('Preço (R$)').fill('75.00');
   await page.getByLabel('Duração (min)').fill('90');
   await page.getByRole('button', { name: 'Cadastrar serviço' }).click();
-  await page.getByLabel('Nome').fill('Serviço inativo');
+  await page.getByLabel('Nome', { exact: true }).fill('Serviço inativo');
   await page.getByLabel('Preço (R$)').fill('10.00');
   await page.getByLabel('Duração (min)').fill('15');
   await page.getByLabel('Serviço ativo').uncheck();
@@ -156,12 +156,81 @@ test('cliente consulta serviços ativos e contato da lavação no celular', asyn
   await expect(
     page.getByRole('heading', { name: 'Lavação Horizonte' }),
   ).toBeVisible();
-  await expect(page.getByText('Lavagem completa')).toBeVisible();
-  await expect(page.getByText('90 min')).toBeVisible();
+  await expect(
+    page.getByText('Lavagem completa', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('90 min', { exact: true })).toBeVisible();
   await expect(page.getByText('R$ 75,00')).toBeVisible();
   await expect(page.getByText('Contato: +5511999990001')).toBeVisible();
   await expect(page.getByText('Serviço inativo')).not.toBeVisible();
 });
+
+test('proprietário configura capacidade e cliente consulta horários no celular', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const setupLink = provisionOwner({
+    baseUrl,
+    carWashName: 'Lavação Horizonte',
+    slug: 'lavacao-horizonte',
+    email: 'dona.horizonte@example.test',
+  });
+  await page.goto(setupLink);
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Definir senha' }).click();
+  await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await page.getByLabel('Nome', { exact: true }).fill('Lavagem completa');
+  await page.getByLabel('Preço (R$)').fill('75.00');
+  await page.getByLabel('Duração (min)').fill('60');
+  await page.getByRole('button', { name: 'Cadastrar serviço' }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Capacidade e agenda' }),
+  ).toBeVisible();
+  await page.getByLabel('Nome do box').fill('Box principal');
+  await page.getByRole('button', { name: 'Cadastrar box' }).click();
+  const date = futureDateInSaoPaulo(1);
+  const weekdayLabel = weekdayLabels[new Date(`${date}T12:00:00Z`).getUTCDay()];
+  await page.getByLabel(`${weekdayLabel} aberto`).check();
+  await page.getByRole('button', { name: 'Salvar agenda' }).click();
+  await expect(page.getByText('Agenda atualizada.')).toBeVisible();
+
+  await page.goto(`${baseUrl}/lavacoes/lavacao-horizonte`);
+  await page.getByLabel('Serviço para agendar').selectOption({
+    label: 'Lavagem completa — 60 min',
+  });
+  await page.getByLabel('Data do atendimento').fill(date);
+  await page.getByRole('button', { name: 'Consultar horários' }).click();
+  await expect(page.getByRole('button', { name: '08:00' })).toBeVisible();
+});
+
+const weekdayLabels = [
+  'Domingo',
+  'Segunda-feira',
+  'Terça-feira',
+  'Quarta-feira',
+  'Quinta-feira',
+  'Sexta-feira',
+  'Sábado',
+];
+
+function futureDateInSaoPaulo(days: number) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((candidate) => candidate.type === type)?.value);
+  const date = new Date(
+    Date.UTC(part('year'), part('month') - 1, part('day') + days),
+  );
+  return date.toISOString().slice(0, 10);
+}
 
 test('troca de lavação só permite salvar o contato depois de carregar o perfil correto', async ({
   page,

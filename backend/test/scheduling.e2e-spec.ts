@@ -1,0 +1,408 @@
+import { INestApplication } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { createHash } from 'node:crypto';
+import request from 'supertest';
+import { App } from 'supertest/types';
+import { AppModule } from './../src/app.module';
+import { configureApp } from './../src/configure-app';
+import { startTestDatabase, TestDatabase } from './support/test-database';
+
+describe('Configuração da agenda e disponibilidade (e2e)', () => {
+  let app: INestApplication<App>;
+  let database: TestDatabase;
+
+  beforeAll(async () => {
+    database = await startTestDatabase();
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    configureApp(app);
+    await app.init();
+  }, 120_000);
+
+  beforeEach(async () => {
+    await database.reset();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('expõe ao proprietário os padrões de configuração da agenda', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+
+    await owner.agent
+      .get('/api/car-washes/lavacao-sol/scheduling-settings')
+      .expect(200)
+      .expect({
+        timezone: 'America/Sao_Paulo',
+        minimumBookingNoticeMinutes: 60,
+        bookingHorizonDays: 30,
+        changeNoticeMinutes: 120,
+        slotIntervalMinutes: 30,
+        weeklyHours: [],
+        boxes: [],
+      });
+  });
+
+  it('permite ao proprietário configurar capacidade, expediente e políticas somente na própria lavação', async () => {
+    const ownerA = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+    const ownerB = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-lua',
+      email: 'dona.lua@example.test',
+    });
+
+    const box = await ownerA.agent
+      .post('/api/car-washes/lavacao-sol/boxes')
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({ name: 'Box principal' })
+      .expect(201);
+    expect(box.body).toEqual({
+      id: expect.any(String),
+      name: 'Box principal',
+      active: true,
+    });
+
+    await ownerA.agent
+      .put('/api/car-washes/lavacao-sol/scheduling-settings')
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({
+        minimumBookingNoticeMinutes: 90,
+        bookingHorizonDays: 21,
+        changeNoticeMinutes: 180,
+        slotIntervalMinutes: 15,
+        weeklyHours: [
+          { weekday: 1, opensAt: '08:00', closesAt: '18:00' },
+          { weekday: 6, opensAt: '08:00', closesAt: '12:00' },
+        ],
+      })
+      .expect(200)
+      .expect({
+        timezone: 'America/Sao_Paulo',
+        minimumBookingNoticeMinutes: 90,
+        bookingHorizonDays: 21,
+        changeNoticeMinutes: 180,
+        slotIntervalMinutes: 15,
+        weeklyHours: [
+          { weekday: 1, opensAt: '08:00', closesAt: '18:00' },
+          { weekday: 6, opensAt: '08:00', closesAt: '12:00' },
+        ],
+        boxes: [box.body],
+      });
+
+    await ownerB.agent
+      .get('/api/car-washes/lavacao-sol/scheduling-settings')
+      .expect(404);
+    await ownerB.agent
+      .post('/api/car-washes/lavacao-sol/boxes')
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send({ name: 'Box invasor' })
+      .expect(404);
+
+    await changeMembershipRole(database, 'lavacao-lua', 'EMPLOYEE');
+    await ownerB.agent
+      .get('/api/car-washes/lavacao-lua/scheduling-settings')
+      .expect(404);
+  });
+
+  it('calcula horários públicos pela duração, expediente, antecedência e capacidade persistida', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-09-10T12:00:00.000Z').getTime());
+
+    const service = await owner.agent
+      .post('/api/car-washes/lavacao-sol/services')
+      .set('x-csrf-token', owner.csrfToken)
+      .send({
+        name: 'Lavagem completa',
+        priceInCents: 7500,
+        durationInMinutes: 60,
+        active: true,
+      })
+      .expect(201);
+    const boxes = [];
+    for (const name of ['Box 1', 'Box 2']) {
+      const box = await owner.agent
+        .post('/api/car-washes/lavacao-sol/boxes')
+        .set('x-csrf-token', owner.csrfToken)
+        .send({ name })
+        .expect(201);
+      boxes.push(box.body as { id: string });
+    }
+    await owner.agent
+      .put('/api/car-washes/lavacao-sol/scheduling-settings')
+      .set('x-csrf-token', owner.csrfToken)
+      .send({
+        minimumBookingNoticeMinutes: 60,
+        bookingHorizonDays: 30,
+        changeNoticeMinutes: 120,
+        slotIntervalMinutes: 30,
+        weeklyHours: [
+          { weekday: 4, opensAt: '08:00', closesAt: '18:00' },
+          { weekday: 5, opensAt: '08:00', closesAt: '12:00' },
+        ],
+      })
+      .expect(200);
+    await seedAppointments(database, {
+      carWashId: 'lavacao-sol',
+      serviceOfferingId: service.body.id as string,
+      boxIds: boxes.map((box) => box.id),
+      startsAt: '2026-09-11T12:00:00.000Z',
+      endsAt: '2026-09-11T13:00:00.000Z',
+    });
+
+    await request(app.getHttpServer())
+      .get('/api/public/car-washes/lavacao-sol/availability')
+      .query({ serviceId: service.body.id, date: '2026-09-11' })
+      .expect(200)
+      .expect({
+        date: '2026-09-11',
+        timezone: 'America/Sao_Paulo',
+        slots: [
+          {
+            startsAt: '2026-09-11T11:00:00.000Z',
+            endsAt: '2026-09-11T12:00:00.000Z',
+          },
+          {
+            startsAt: '2026-09-11T13:00:00.000Z',
+            endsAt: '2026-09-11T14:00:00.000Z',
+          },
+          {
+            startsAt: '2026-09-11T13:30:00.000Z',
+            endsAt: '2026-09-11T14:30:00.000Z',
+          },
+          {
+            startsAt: '2026-09-11T14:00:00.000Z',
+            endsAt: '2026-09-11T15:00:00.000Z',
+          },
+        ],
+      });
+
+    const today = await request(app.getHttpServer())
+      .get('/api/public/car-washes/lavacao-sol/availability')
+      .query({ serviceId: service.body.id, date: '2026-09-10' })
+      .expect(200);
+    expect(today.body.slots[0].startsAt).toBe('2026-09-10T13:00:00.000Z');
+    expect(today.body.slots.at(-1).endsAt).toBe('2026-09-10T21:00:00.000Z');
+
+    await request(app.getHttpServer())
+      .get('/api/public/car-washes/lavacao-sol/availability')
+      .query({ serviceId: service.body.id, date: '2026-09-09' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/api/public/car-washes/lavacao-sol/availability')
+      .query({ serviceId: service.body.id, date: '2026-10-11' })
+      .expect(400);
+  });
+
+  it('mostra conflitos e preserva reservas ao reduzir expediente ou desativar box', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+    const service = await owner.agent
+      .post('/api/car-washes/lavacao-sol/services')
+      .set('x-csrf-token', owner.csrfToken)
+      .send({
+        name: 'Lavagem completa',
+        priceInCents: 7500,
+        durationInMinutes: 60,
+        active: true,
+      })
+      .expect(201);
+    const box = await owner.agent
+      .post('/api/car-washes/lavacao-sol/boxes')
+      .set('x-csrf-token', owner.csrfToken)
+      .send({ name: 'Box principal' })
+      .expect(201);
+    await owner.agent
+      .put('/api/car-washes/lavacao-sol/scheduling-settings')
+      .set('x-csrf-token', owner.csrfToken)
+      .send(defaultSettings(allWeekdays()))
+      .expect(200);
+    await seedAppointments(database, {
+      carWashId: 'lavacao-sol',
+      serviceOfferingId: service.body.id as string,
+      boxIds: [box.body.id as string],
+      startsAt: '2099-09-11T12:00:00.000Z',
+      endsAt: '2099-09-11T13:00:00.000Z',
+    });
+
+    const deactivation = await owner.agent
+      .patch(`/api/car-washes/lavacao-sol/boxes/${box.body.id}`)
+      .set('x-csrf-token', owner.csrfToken)
+      .send({ active: false })
+      .expect(409);
+    expect(deactivation.body).toMatchObject({
+      message: 'A mudança conflita com reservas futuras',
+      conflicts: [{ appointmentId: 'agendamento-0' }],
+    });
+
+    const scheduleChange = await owner.agent
+      .put('/api/car-washes/lavacao-sol/scheduling-settings')
+      .set('x-csrf-token', owner.csrfToken)
+      .send(defaultSettings([]))
+      .expect(409);
+    expect(scheduleChange.body).toMatchObject({
+      message: 'A mudança conflita com reservas futuras',
+      conflicts: [{ appointmentId: 'agendamento-0' }],
+    });
+
+    const preserved = await owner.agent
+      .get('/api/car-washes/lavacao-sol/scheduling-settings')
+      .expect(200);
+    expect(preserved.body.boxes).toEqual([{ ...box.body, active: true }]);
+    expect(preserved.body.weeklyHours).toEqual(allWeekdays());
+    expect(await appointmentCount(database)).toBe(1);
+  });
+
+  afterAll(async () => {
+    await app?.close();
+    await database?.stop();
+  });
+});
+
+function defaultSettings(weeklyHours: ReturnType<typeof allWeekdays>) {
+  return {
+    minimumBookingNoticeMinutes: 60,
+    bookingHorizonDays: 30,
+    changeNoticeMinutes: 120,
+    slotIntervalMinutes: 30,
+    weeklyHours,
+  };
+}
+
+function allWeekdays() {
+  return Array.from({ length: 7 }, (_, weekday) => ({
+    weekday,
+    opensAt: '08:00',
+    closesAt: '18:00',
+  }));
+}
+
+async function appointmentCount(database: TestDatabase) {
+  const client = database.client();
+  await client.connect();
+  try {
+    const result = await client.query<{ count: string }>(
+      'SELECT COUNT(*) AS count FROM "Appointment"',
+    );
+    return Number(result.rows[0].count);
+  } finally {
+    await client.end();
+  }
+}
+
+async function changeMembershipRole(
+  database: TestDatabase,
+  carWashId: string,
+  role: 'OWNER' | 'EMPLOYEE',
+) {
+  const client = database.client();
+  await client.connect();
+  try {
+    await client.query(
+      'UPDATE "Membership" SET role = $1 WHERE "carWashId" = $2',
+      [role, carWashId],
+    );
+  } finally {
+    await client.end();
+  }
+}
+
+async function seedAppointments(
+  database: TestDatabase,
+  input: {
+    carWashId: string;
+    serviceOfferingId: string;
+    boxIds: string[];
+    startsAt: string;
+    endsAt: string;
+  },
+) {
+  const client = database.client();
+  await client.connect();
+  try {
+    for (const [index, boxId] of input.boxIds.entries()) {
+      await client.query(
+        'INSERT INTO "Appointment" (id, "carWashId", "boxId", "serviceOfferingId", "startsAt", "endsAt", "serviceName", "servicePriceInCents", "serviceDurationInMinutes", status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+        [
+          `agendamento-${index}`,
+          input.carWashId,
+          boxId,
+          input.serviceOfferingId,
+          input.startsAt,
+          input.endsAt,
+          'Lavagem completa',
+          7500,
+          60,
+          'CONFIRMED',
+        ],
+      );
+    }
+  } finally {
+    await client.end();
+  }
+}
+
+async function authenticatedOwner(
+  database: TestDatabase,
+  app: INestApplication<App>,
+  input: { carWashId: string; email: string },
+): Promise<{ agent: ReturnType<typeof request.agent>; csrfToken: string }> {
+  const setupToken = `token-ficticio-${input.carWashId}`;
+  const client = database.client();
+  await client.connect();
+  try {
+    const userId = `${input.carWashId}-owner`;
+    await client.query(
+      'INSERT INTO "CarWash" (id, name, slug) VALUES ($1, $2, $3)',
+      [input.carWashId, 'Lavação Sol', input.carWashId],
+    );
+    await client.query('INSERT INTO "User" (id, email) VALUES ($1, $2)', [
+      userId,
+      input.email,
+    ]);
+    await client.query(
+      'INSERT INTO "Membership" (id, "userId", "carWashId", role, status) VALUES ($1, $2, $3, $4, $5)',
+      [`${userId}-membership`, userId, input.carWashId, 'OWNER', 'ACTIVE'],
+    );
+    await client.query(
+      'INSERT INTO "AccessToken" (id, "userId", purpose, "tokenHash", "expiresAt") VALUES ($1, $2, $3, $4, $5)',
+      [
+        `${userId}-token`,
+        userId,
+        'SET_PASSWORD',
+        createHash('sha256').update(setupToken).digest('hex'),
+        new Date(Date.now() + 3_600_000),
+      ],
+    );
+  } finally {
+    await client.end();
+  }
+
+  await request(app.getHttpServer())
+    .post('/api/auth/set-password')
+    .send({ token: setupToken, password: 'Senha-ficticia-123!' })
+    .expect(204);
+
+  const agent = request.agent(app.getHttpServer());
+  const response = await agent.post('/api/auth/login').send({
+    email: input.email,
+    password: 'Senha-ficticia-123!',
+  });
+
+  return { agent, csrfToken: response.body.csrfToken as string };
+}

@@ -4,15 +4,15 @@
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os quatro primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os cinco primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-Ticket 4 do piloto, [issue #5](https://github.com/kauepacheco/nitivo/issues/5):
-página pública da lavação com serviços ativos, preços, durações e contato
-operacional configurável pelo proprietário.
+Ticket 5 do piloto, [issue #6](https://github.com/kauepacheco/nitivo/issues/6):
+configuração de boxes, expediente semanal e políticas pelo proprietário, com
+consulta pública de horários disponíveis para um serviço.
 
 ## Concluído
 
@@ -76,25 +76,36 @@ operacional configurável pelo proprietário.
   o contato após carregar o perfil correspondente; regressões no navegador
   cobrem carregamento lento, falha de consulta e respostas atrasadas de leitura
   e salvamento, conferindo os contatos nas páginas públicas das duas lavações.
+- proprietário cadastra boxes e configura expediente semanal, antecedência
+  mínima, horizonte, prazo de alteração e intervalo entre inícios, preservando
+  os padrões aprovados e o isolamento entre lavações;
+- disponibilidade pública combina duração do serviço, fuso da lavação,
+  expediente, boxes ativos, antecedência, horizonte e ocupações persistidas,
+  permitindo término exato no fechamento;
+- reduções de expediente ou capacidade exibem reservas futuras conflitantes e
+  não alteram a configuração nem os compromissos; exceções e bloqueios
+  permanecem reservados ao ticket 14;
+- jornada móvel permite ao proprietário configurar capacidade e expediente e ao
+  cliente consultar horários para o serviço e a data escolhidos.
 
 ## Objetivo atual
 
-O ticket 4 está implementado localmente e validado com dados fictícios.
+O ticket 5 está implementado localmente e validado com dados fictícios.
 O produto ainda não está pronto para demonstração remota ou piloto: faltam os
 incrementos seguintes, implantação e critérios operacionais e de privacidade.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação o ticket 5,
-[issue #6](https://github.com/kauepacheco/nitivo/issues/6): configuração de
-capacidade e consulta de horários disponíveis.
+Implementar em nova solicitação o ticket 6,
+[issue #7](https://github.com/kauepacheco/nitivo/issues/7): confirmação da
+reserva pública e exibição na agenda da equipe.
 
 ## Pendências de execução
 
-- aguardar nova solicitação antes de iniciar o ticket 5;
+- aguardar nova solicitação antes de iniciar o ticket 6;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar os tickets 5 a 22 em sequência;
+- implementar e verificar os tickets 6 a 22 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 - preservar as alterações locais anteriores no backend, catálogo e skills.

@@ -38,6 +38,36 @@ type Team = {
   invitations: Array<{ id: string; email: string; expiresAt: string }>;
 };
 
+type SchedulingSettings = {
+  timezone: string;
+  minimumBookingNoticeMinutes: number;
+  bookingHorizonDays: number;
+  changeNoticeMinutes: number;
+  slotIntervalMinutes: number;
+  weeklyHours: Array<{
+    weekday: number;
+    opensAt: string;
+    closesAt: string;
+  }>;
+  boxes: Array<{ id: string; name: string; active: boolean }>;
+};
+
+type Availability = {
+  date: string;
+  timezone: string;
+  slots: Array<{ startsAt: string; endsAt: string }>;
+};
+
+const weekdayLabels = [
+  'Domingo',
+  'Segunda-feira',
+  'Terça-feira',
+  'Quarta-feira',
+  'Quinta-feira',
+  'Sexta-feira',
+  'Sábado',
+];
+
 export function App() {
   const setupToken = new URLSearchParams(window.location.search).get('token');
   const publicMatch = window.location.pathname.match(/^\/lavacoes\/([^/]+)$/);
@@ -110,6 +140,8 @@ export function App() {
 function PublicCarWash({ slug }: { slug: string }) {
   const [page, setPage] = useState<PublicCarWashPage | null>(null);
   const [message, setMessage] = useState('Carregando…');
+  const [availability, setAvailability] = useState<Availability | null>(null);
+  const [availabilityMessage, setAvailabilityMessage] = useState('');
   useEffect(() => {
     void api<PublicCarWashPage>(
       `/api/public/car-washes/${encodeURIComponent(slug)}`,
@@ -120,6 +152,29 @@ function PublicCarWash({ slug }: { slug: string }) {
       })
       .catch((error) => setMessage(errorMessage(error)));
   }, [slug]);
+
+  async function consultAvailability(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const params = new URLSearchParams({
+      serviceId: String(form.get('serviceId')),
+      date: String(form.get('date')),
+    });
+    try {
+      const result = await api<Availability>(
+        `/api/public/car-washes/${encodeURIComponent(slug)}/availability?${params}`,
+      );
+      setAvailability(result);
+      setAvailabilityMessage(
+        result.slots.length === 0
+          ? 'Nenhum horário disponível nesta data.'
+          : '',
+      );
+    } catch (error) {
+      setAvailability(null);
+      setAvailabilityMessage(errorMessage(error));
+    }
+  }
   if (!page)
     return (
       <main className="center-card">
@@ -161,6 +216,41 @@ function PublicCarWash({ slug }: { slug: string }) {
           </ul>
         )}
       </section>
+      {page.services.length > 0 ? (
+        <section className="panel availability-panel">
+          <h2>Consultar horários</h2>
+          <form onSubmit={consultAvailability}>
+            <label>
+              Serviço para agendar
+              <select name="serviceId" required defaultValue="">
+                <option value="" disabled>
+                  Selecione um serviço
+                </option>
+                {page.services.map((service) => (
+                  <option key={service.id} value={service.id}>
+                    {service.name} — {service.durationInMinutes} min
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Data do atendimento
+              <input name="date" type="date" required />
+            </label>
+            <button type="submit">Consultar horários</button>
+          </form>
+          {availability?.slots.length ? (
+            <div className="slot-list" aria-label="Horários disponíveis">
+              {availability.slots.map((slot) => (
+                <button key={slot.startsAt} type="button" className="slot">
+                  {formatTime(slot.startsAt, availability.timezone)}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <Status message={availabilityMessage} />
+        </section>
+      ) : null}
     </main>
   );
 }
@@ -606,8 +696,232 @@ function OwnerWorkspace({
           )}
         </section>
       </div>
+      <SchedulingManagement session={session} membership={membership} />
       <TeamManagement session={session} membership={membership} />
     </main>
+  );
+}
+
+function SchedulingManagement({
+  session,
+  membership,
+}: {
+  session: Session;
+  membership: Membership;
+}) {
+  const [settings, setSettings] = useState<SchedulingSettings | null>(null);
+  const [message, setMessage] = useState('Carregando agenda…');
+
+  async function loadSettings() {
+    const result = await api<SchedulingSettings>(
+      `/api/car-washes/${membership.carWashId}/scheduling-settings`,
+    );
+    setSettings(result);
+    setMessage('');
+  }
+
+  useEffect(() => {
+    void loadSettings().catch((error) => setMessage(errorMessage(error)));
+  }, [membership.carWashId]);
+
+  async function createBox(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      await api(`/api/car-washes/${membership.carWashId}/boxes`, {
+        method: 'POST',
+        headers: { 'x-csrf-token': session.csrfToken },
+        body: JSON.stringify({ name: form.get('name') }),
+      });
+      formElement.reset();
+      await loadSettings();
+      setMessage('Box cadastrado.');
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  async function saveSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const weeklyHours = weekdayLabels.flatMap((_, weekday) =>
+      form.get(`open-${weekday}`) === 'on'
+        ? [
+            {
+              weekday,
+              opensAt: String(form.get(`opens-${weekday}`)),
+              closesAt: String(form.get(`closes-${weekday}`)),
+            },
+          ]
+        : [],
+    );
+    try {
+      const result = await api<SchedulingSettings>(
+        `/api/car-washes/${membership.carWashId}/scheduling-settings`,
+        {
+          method: 'PUT',
+          headers: { 'x-csrf-token': session.csrfToken },
+          body: JSON.stringify({
+            minimumBookingNoticeMinutes: Number(
+              form.get('minimumBookingNoticeMinutes'),
+            ),
+            bookingHorizonDays: Number(form.get('bookingHorizonDays')),
+            changeNoticeMinutes: Number(form.get('changeNoticeMinutes')),
+            slotIntervalMinutes: Number(form.get('slotIntervalMinutes')),
+            weeklyHours,
+          }),
+        },
+      );
+      setSettings(result);
+      setMessage('Agenda atualizada.');
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  async function toggleBox(box: SchedulingSettings['boxes'][number]) {
+    try {
+      await api(`/api/car-washes/${membership.carWashId}/boxes/${box.id}`, {
+        method: 'PATCH',
+        headers: { 'x-csrf-token': session.csrfToken },
+        body: JSON.stringify({ active: !box.active }),
+      });
+      await loadSettings();
+      setMessage(`Box ${box.active ? 'desativado' : 'ativado'}.`);
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  return (
+    <section className="management-section">
+      <div className="intro compact">
+        <span className="eyebrow">Disponibilidade</span>
+        <h1>Capacidade e agenda</h1>
+        <p>Configure os boxes, o expediente semanal e as regras de reserva.</p>
+      </div>
+      {settings ? (
+        <div className="columns scheduling-columns">
+          <section className="panel">
+            <h2>Boxes</h2>
+            <form onSubmit={createBox}>
+              <label>
+                Nome do box
+                <input name="name" maxLength={80} required />
+              </label>
+              <button type="submit">Cadastrar box</button>
+            </form>
+            <ul className="service-list">
+              {settings.boxes.map((box) => (
+                <li key={box.id}>
+                  <div>
+                    <strong>{box.name}</strong>
+                    <span>{box.active ? 'Ativo' : 'Inativo'}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondary inline-button"
+                    onClick={() => void toggleBox(box)}
+                  >
+                    {box.active ? 'Desativar' : 'Ativar'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="panel">
+            <h2>Expediente e políticas</h2>
+            <form onSubmit={saveSettings}>
+              <div className="policy-grid">
+                <NumberField
+                  name="minimumBookingNoticeMinutes"
+                  label="Antecedência mínima (min)"
+                  value={settings.minimumBookingNoticeMinutes}
+                  min={0}
+                />
+                <NumberField
+                  name="bookingHorizonDays"
+                  label="Horizonte de reservas (dias)"
+                  value={settings.bookingHorizonDays}
+                  min={1}
+                />
+                <NumberField
+                  name="changeNoticeMinutes"
+                  label="Prazo para alterações (min)"
+                  value={settings.changeNoticeMinutes}
+                  min={0}
+                />
+                <NumberField
+                  name="slotIntervalMinutes"
+                  label="Intervalo entre inícios (min)"
+                  value={settings.slotIntervalMinutes}
+                  min={5}
+                />
+              </div>
+              <div className="week-grid">
+                {weekdayLabels.map((label, weekday) => {
+                  const hours = settings.weeklyHours.find(
+                    (candidate) => candidate.weekday === weekday,
+                  );
+                  return (
+                    <div className="weekday" key={label}>
+                      <label className="checkbox">
+                        <input
+                          name={`open-${weekday}`}
+                          type="checkbox"
+                          defaultChecked={Boolean(hours)}
+                        />
+                        {label} aberto
+                      </label>
+                      <input
+                        aria-label={`${label} abre`}
+                        name={`opens-${weekday}`}
+                        type="time"
+                        defaultValue={hours?.opensAt ?? '08:00'}
+                      />
+                      <input
+                        aria-label={`${label} fecha`}
+                        name={`closes-${weekday}`}
+                        type="time"
+                        defaultValue={hours?.closesAt ?? '18:00'}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <button type="submit">Salvar agenda</button>
+            </form>
+          </section>
+        </div>
+      ) : null}
+      <Status message={message} />
+    </section>
+  );
+}
+
+function NumberField({
+  name,
+  label,
+  value,
+  min,
+}: {
+  name: string;
+  label: string;
+  value: number;
+  min: number;
+}) {
+  return (
+    <label>
+      {label}
+      <input
+        name={name}
+        type="number"
+        min={min}
+        step="1"
+        defaultValue={value}
+      />
+    </label>
   );
 }
 
@@ -825,4 +1139,13 @@ function formatMoney(valueInCents: number) {
     style: 'currency',
     currency: 'BRL',
   }).format(valueInCents / 100);
+}
+
+function formatTime(instant: string, timezone: string) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(instant));
 }

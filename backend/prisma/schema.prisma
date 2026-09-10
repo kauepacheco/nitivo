@@ -22,14 +22,74 @@ enum AccessTokenPurpose {
 }
 
 model CarWash {
-  id                      String               @id @default(cuid())
-  name                    String
-  slug                    String               @unique
-  operationalContactPhone String?
-  createdAt               DateTime             @default(now()) @db.Timestamptz(3)
-  memberships             Membership[]
-  services                ServiceOffering[]
-  employeeInvitations     EmployeeInvitation[]
+  id                          String               @id @default(cuid())
+  name                        String
+  slug                        String               @unique
+  operationalContactPhone     String?
+  timezone                    String               @default("America/Sao_Paulo")
+  minimumBookingNoticeMinutes Int                  @default(60)
+  bookingHorizonDays          Int                  @default(30)
+  changeNoticeMinutes         Int                  @default(120)
+  slotIntervalMinutes         Int                  @default(30)
+  createdAt                   DateTime             @default(now()) @db.Timestamptz(3)
+  memberships                 Membership[]
+  services                    ServiceOffering[]
+  employeeInvitations         EmployeeInvitation[]
+  boxes                       Box[]
+  weeklyHours                 WeeklyOpeningHour[]
+}
+
+model Box {
+  id           String        @id @default(cuid())
+  carWashId    String
+  name         String
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  carWash      CarWash       @relation(fields: [carWashId], references: [id], onDelete: Restrict)
+  appointments Appointment[]
+
+  @@unique([id, carWashId])
+  @@unique([carWashId, name])
+  @@index([carWashId, active, createdAt])
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+  NO_SHOW
+}
+
+model Appointment {
+  id                       String            @id @default(cuid())
+  carWashId                String
+  boxId                    String
+  serviceOfferingId        String
+  startsAt                 DateTime          @db.Timestamptz(3)
+  endsAt                   DateTime          @db.Timestamptz(3)
+  serviceName              String
+  servicePriceInCents      Int
+  serviceDurationInMinutes Int
+  status                   AppointmentStatus @default(CONFIRMED)
+  createdAt                DateTime          @default(now()) @db.Timestamptz(3)
+  box                      Box               @relation(fields: [boxId, carWashId], references: [id, carWashId], onDelete: Restrict)
+  serviceOffering          ServiceOffering   @relation(fields: [serviceOfferingId, carWashId], references: [id, carWashId], onDelete: Restrict)
+
+  @@index([carWashId, startsAt, endsAt])
+  @@index([boxId, startsAt, endsAt])
+}
+
+model WeeklyOpeningHour {
+  id             String  @id @default(cuid())
+  carWashId      String
+  weekday        Int
+  opensAtMinute  Int
+  closesAtMinute Int
+  carWash        CarWash @relation(fields: [carWashId], references: [id], onDelete: Cascade)
+
+  @@unique([carWashId, weekday])
+  @@index([carWashId, weekday])
 }
 
 model User {
@@ -112,14 +172,15 @@ model AuthenticationThrottle {
 }
 
 model ServiceOffering {
-  id                String   @id @default(cuid())
+  id                String        @id @default(cuid())
   carWashId         String
   name              String
   priceInCents      Int
   durationInMinutes Int
-  active            Boolean  @default(true)
-  createdAt         DateTime @default(now()) @db.Timestamptz(3)
-  carWash           CarWash  @relation(fields: [carWashId], references: [id], onDelete: Restrict)
+  active            Boolean       @default(true)
+  createdAt         DateTime      @default(now()) @db.Timestamptz(3)
+  carWash           CarWash       @relation(fields: [carWashId], references: [id], onDelete: Restrict)
+  appointments      Appointment[]
 
   @@unique([id, carWashId])
   @@index([carWashId, createdAt])

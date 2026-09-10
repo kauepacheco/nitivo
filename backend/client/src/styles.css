@@ -157,6 +157,45 @@ button:hover {
 .public-profile-panel {
   margin-bottom: 24px;
 }
+.availability-panel {
+  margin-top: 24px;
+}
+.slot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+.slot {
+  min-height: 40px;
+  background: #e9f3ee;
+  color: #154f37;
+}
+.management-section {
+  margin-top: 24px;
+  border-top: 1px solid #dce5e0;
+}
+.scheduling-columns {
+  grid-template-columns: minmax(280px, 0.7fr) minmax(460px, 1.3fr);
+}
+.policy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.week-grid {
+  display: grid;
+  gap: 10px;
+}
+.weekday {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 110px 110px;
+  gap: 10px;
+  align-items: center;
+}
+.inline-button {
+  margin-left: 0;
+}
 header {
   display: flex;
   justify-content: space-between;
@@ -298,5 +337,15 @@ header > div:last-child {
   }
   .field-row {
     grid-template-columns: 1fr;
+  }
+  .scheduling-columns,
+  .policy-grid {
+    grid-template-columns: 1fr;
+  }
+  .weekday {
+    grid-template-columns: 1fr 1fr;
+  }
+  .weekday .checkbox {
+    grid-column: 1 / -1;
   }
 }

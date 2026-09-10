@@ -1,10 +1,12 @@
 # Aplicação do Nitivo
 
 Monólito modular do Nitivo: API NestJS, interface React/Vite e PostgreSQL. Os
-quatro primeiros incrementos permitem ao operador provisionar uma lavação, ao
+cinco primeiros incrementos permitem ao operador provisionar uma lavação, ao
 proprietário definir sua senha, administrar um catálogo persistido, convidar ou
 revogar funcionários, recuperar o acesso da equipe de forma assistida e publicar
-os serviços ativos com preço, duração e contato operacional.
+os serviços ativos com preço, duração e contato operacional. O proprietário
+também configura boxes, expediente semanal e políticas; o cliente consulta os
+horários disponíveis para um serviço no fuso da lavação.
 
 ## Requisitos
 
@@ -117,6 +119,19 @@ serviços ativos. O endpoint público correspondente é
 `GET /api/public/car-washes/<slug-da-lavacao>`; ele não exige autenticação e não
 expõe membros da equipe ou dados internos do tenant.
 
+Em **Capacidade e agenda**, o proprietário cadastra e ativa ou desativa boxes,
+define o expediente semanal e ajusta antecedência, horizonte, prazo para
+alterações e intervalo entre possíveis inícios. Os valores iniciais são 60
+minutos, 30 dias, 120 minutos e 30 minutos, respectivamente, no fuso
+`America/Sao_Paulo`. Uma redução de expediente ou capacidade que conflite com
+reservas futuras não é aplicada; a API devolve as reservas conflitantes para
+conferência, sem alterá-las.
+
+Na página pública, o cliente escolhe um serviço e uma data para consultar os
+horários. O cálculo considera duração, expediente, boxes ativos, antecedência,
+horizonte e reservas existentes. Exceções de calendário e bloqueios serão
+acrescentados em um incremento posterior.
+
 Em produção, a sessão usa cookie `Secure`, `HttpOnly` e `SameSite=Strict`.
 Operações autenticadas que alteram estado também exigem o token CSRF devolvido
 pelo login. Sessões têm expiração por 30 minutos de inatividade e limite absoluto
@@ -149,5 +164,6 @@ As decisões da stack estão no [ADR 0001](../docs/adr/0001-stack-inicial.md) e 
 escopo dos incrementos está nas issues
 [#2](https://github.com/kauepacheco/nitivo/issues/2),
 [#3](https://github.com/kauepacheco/nitivo/issues/3) e
-[#4](https://github.com/kauepacheco/nitivo/issues/4) e
-[#5](https://github.com/kauepacheco/nitivo/issues/5).
+[#4](https://github.com/kauepacheco/nitivo/issues/4),
+[#5](https://github.com/kauepacheco/nitivo/issues/5) e
+[#6](https://github.com/kauepacheco/nitivo/issues/6).
