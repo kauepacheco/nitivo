@@ -49,3 +49,17 @@ envio pelo próprio cliente. Delimitar os dados incluídos nesse texto e registr
 esse fluxo no inventário; não incluir senha, token de acesso ou dados de outros
 clientes. A coleta e os canais de acesso da equipe são tratados separadamente
 do formulário do cliente.
+
+## Recuperação de acesso da equipe
+
+A recuperação é iniciada somente pelo operador depois de conferir a identidade
+em um canal previamente conhecido. Dados do autoagendamento, conhecimento de uma
+reserva ou um novo contato apresentado pela pessoa não comprovam identidade. O
+link é entregue privadamente, não é enviado pelo sistema e não deve aparecer em
+logs, issues ou documentos permanentes.
+
+Se o canal conhecido foi perdido, a emissão deve ser interrompida. A identidade e
+o novo canal precisam ser revalidados com o responsável da lavação usando um
+contato já registrado; se a solicitação vier do próprio responsável, a conferência
+usa os registros da entrada assistida e contato direto. Sem evidência suficiente,
+o acesso permanece bloqueado e o operador encaminha o caso ao suporte do Nitivo.

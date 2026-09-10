@@ -44,8 +44,8 @@ As dependências representam entregas necessárias; dados fictícios permitem ve
 
 **Histórias da especificação:** 42, 67.
 
-- [ ] Token com hash armazenado, finalidade delimitada, expiração, consumo atômico e limite de tentativas; sessões antigas revogadas.
-- [ ] Ensaiar link inválido, expirado e reutilizado; documentar entrega privada e perda do canal conhecido, sem envio automático.
+- [x] Token com hash armazenado, finalidade delimitada, expiração, consumo atômico e limite de tentativas; sessões antigas revogadas.
+- [x] Ensaiar link inválido, expirado e reutilizado; documentar entrega privada e perda do canal conhecido, sem envio automático.
 
 ## 4. Consultar a página pública e os serviços
 

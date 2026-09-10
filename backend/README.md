@@ -1,9 +1,9 @@
 # Aplicação do Nitivo
 
 Monólito modular do Nitivo: API NestJS, interface React/Vite e PostgreSQL. Os
-dois primeiros incrementos permitem ao operador provisionar uma lavação, ao
-proprietário definir sua senha, administrar um catálogo persistido e convidar ou
-revogar funcionários sem misturar identidades e vínculos entre tenants.
+três primeiros incrementos permitem ao operador provisionar uma lavação, ao
+proprietário definir sua senha, administrar um catálogo persistido, convidar ou
+revogar funcionários e recuperar o acesso da equipe de forma assistida.
 
 ## Requisitos
 
@@ -70,6 +70,33 @@ Revogar o acesso encerra somente o vínculo com aquela lavação. A autorizaçã
 revalida os vínculos ativos em cada operação, de modo que a revogação vale para
 uma sessão já aberta e não afeta o acesso da pessoa a outra lavação.
 
+## Recuperação assistida de acesso
+
+Não existe formulário público de “esqueci minha senha” nem envio automático. Antes
+de emitir um link, o operador deve conferir a identidade da pessoa em um canal
+registrado e previamente conhecido, independente dos dados informados em uma
+reserva pública. Depois da conferência, execute:
+
+```bash
+npm run recover:access -- \
+  --email "dona.horizonte@example.test" \
+  --output-file ".local/password-recovery-link.txt"
+```
+
+O comando aceita somente uma conta com senha e ao menos um vínculo ativo. Ele
+invalida links de recuperação anteriores e grava um novo link de uso único, válido
+por uma hora, em arquivo `0600` sem exibir o segredo no terminal. Entregue o link
+privadamente pelo canal conferido e remova o arquivo logo depois. A redefinição
+revoga todas as sessões anteriores da pessoa, inclusive em outras lavações, e ela
+deve entrar normalmente com a nova senha.
+
+Se a pessoa perdeu o canal conhecido, não gere nem entregue o link. O operador
+deve interromper a recuperação e revalidar a identidade com o responsável da
+lavação por um contato já registrado; para o próprio responsável, use os registros
+da entrada assistida e uma conferência direta. Um nome, telefone, placa, e-mail
+novo ou conhecimento sobre reservas não bastam. Sem confirmação segura, o acesso
+permanece bloqueado e o caso deve ser encaminhado ao suporte do Nitivo.
+
 ## Execução
 
 Para gerar a interface e a API e servi-las na mesma origem:
@@ -111,5 +138,6 @@ npm run test:browser
 
 As decisões da stack estão no [ADR 0001](../docs/adr/0001-stack-inicial.md) e o
 escopo dos incrementos está nas issues
-[#2](https://github.com/kauepacheco/nitivo/issues/2) e
-[#3](https://github.com/kauepacheco/nitivo/issues/3).
+[#2](https://github.com/kauepacheco/nitivo/issues/2),
+[#3](https://github.com/kauepacheco/nitivo/issues/3) e
+[#4](https://github.com/kauepacheco/nitivo/issues/4).

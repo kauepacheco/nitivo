@@ -43,6 +43,22 @@ export class AuthController {
     );
   }
 
+  @Post('reset-password')
+  @HttpCode(204)
+  @ApiNoContentResponse({
+    description: 'Senha redefinida e sessões anteriores revogadas',
+  })
+  async resetPassword(
+    @Body() input: SetPasswordDto,
+    @Ip() remoteAddress: string,
+  ) {
+    await this.authService.resetPassword(
+      input.token,
+      input.password,
+      remoteAddress,
+    );
+  }
+
   @Post('login')
   @HttpCode(200)
   @ApiOkResponse({ description: 'Sessão iniciada' })

@@ -242,6 +242,51 @@ test('pessoa com dois vínculos escolhe em qual lavação deseja atuar', async (
   ).toBeVisible();
 });
 
+test('pessoa recupera o acesso por link privado no celular', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const setupLink = provisionOwner({
+    baseUrl,
+    carWashName: 'Lavação Horizonte',
+    slug: 'lavacao-horizonte',
+    email: 'dona.horizonte@example.test',
+  });
+  await page.goto(setupLink);
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Definir senha' }).click();
+  await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Serviços da sua lavação' }),
+  ).toBeVisible();
+
+  const recoveryLink = recoverAccess({
+    baseUrl,
+    email: 'dona.horizonte@example.test',
+  });
+  await page.goto(recoveryLink);
+  await expect(
+    page.getByRole('heading', { name: 'Redefina sua senha' }),
+  ).toBeVisible();
+  await page.getByLabel('Nova senha').fill('Nova-senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Redefinir senha' }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Acesse sua lavação' }),
+  ).toBeVisible();
+  await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(page.getByText('E-mail ou senha inválidos')).toBeVisible();
+  await page.getByLabel('Senha').fill('Nova-senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Serviços da sua lavação' }),
+  ).toBeVisible();
+});
+
 function provisionOwner(input: {
   baseUrl: string;
   carWashName: string;
@@ -260,6 +305,30 @@ function provisionOwner(input: {
       '--slug',
       input.slug,
       '--owner-email',
+      input.email,
+      '--output-file',
+      outputFile,
+    ],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, APP_URL: input.baseUrl },
+      encoding: 'utf8',
+    },
+  );
+  const link = readFileSync(outputFile, 'utf8').trim();
+  unlinkSync(outputFile);
+  return link;
+}
+
+function recoverAccess(input: { baseUrl: string; email: string }) {
+  const outputFile = join(tmpdir(), `nitivo-recovery-${randomUUID()}.txt`);
+  execFileSync(
+    process.execPath,
+    [
+      '--require',
+      'ts-node/register',
+      'src/scripts/recover-access.ts',
+      '--email',
       input.email,
       '--output-file',
       outputFile,

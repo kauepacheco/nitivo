@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import request from 'supertest';
@@ -388,7 +388,7 @@ describe('Nitivo API (e2e)', () => {
     await owner.agent.get('/api/auth/session').expect(401);
   });
 
-  it('revoga sessões existentes quando uma nova senha é definida', async () => {
+  it('não aceita link de ativação para trocar uma senha existente', async () => {
     const owner = await authenticatedOwner(database, app, {
       carWashId: 'lavacao-sol',
       email: 'dona.sol@example.test',
@@ -399,9 +399,240 @@ describe('Nitivo API (e2e)', () => {
     await request(app.getHttpServer())
       .post('/api/auth/set-password')
       .send({ token: newToken, password: 'Nova-senha-ficticia-123!' })
+      .expect(400);
+
+    await owner.agent.get('/api/auth/session').expect(200);
+  });
+
+  it('recupera o acesso por link privado e revoga as sessões antigas', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.recuperacao@example.test',
+    });
+    const outputFile = join(
+      tmpdir(),
+      `nitivo-recovery-link-${randomUUID()}.txt`,
+    );
+    const output = execFileSync(
+      process.execPath,
+      [
+        '--require',
+        'ts-node/register',
+        'src/scripts/recover-access.ts',
+        '--email',
+        'dona.recuperacao@example.test',
+        '--output-file',
+        outputFile,
+      ],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, APP_URL: 'http://127.0.0.1:3000' },
+        encoding: 'utf8',
+      },
+    );
+    expect(output).toBe('Link privado gravado no arquivo indicado.\n');
+    expect(statSync(outputFile).mode & 0o777).toBe(0o600);
+    const recoveryLink = readFileSync(outputFile, 'utf8').trim();
+    unlinkSync(outputFile);
+    expect(recoveryLink).toMatch(
+      /^http:\/\/127\.0\.0\.1:3000\/reset-password\?token=[A-Za-z0-9_-]+$/,
+    );
+
+    const token = new URL(recoveryLink).searchParams.get('token');
+    await request(app.getHttpServer())
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'Nova-senha-ficticia-123!' })
       .expect(204);
 
     await owner.agent.get('/api/auth/session').expect(401);
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        email: 'dona.recuperacao@example.test',
+        password: 'Senha-ficticia-123!',
+      })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        email: 'dona.recuperacao@example.test',
+        password: 'Nova-senha-ficticia-123!',
+      })
+      .expect(200);
+  });
+
+  it('não sobrescreve arquivo existente ao criar link de recuperação', async () => {
+    await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.arquivo-recuperacao@example.test',
+    });
+    const outputFile = join(
+      tmpdir(),
+      `nitivo-recovery-existing-${randomUUID()}.txt`,
+    );
+    writeFileSync(outputFile, 'não sobrescrever\n', { mode: 0o600 });
+
+    expect(() =>
+      execFileSync(
+        process.execPath,
+        [
+          '--require',
+          'ts-node/register',
+          'src/scripts/recover-access.ts',
+          '--email',
+          'dona.arquivo-recuperacao@example.test',
+          '--output-file',
+          outputFile,
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, APP_URL: 'http://127.0.0.1:3000' },
+          stdio: 'pipe',
+        },
+      ),
+    ).toThrow();
+    expect(readFileSync(outputFile, 'utf8')).toBe('não sobrescrever\n');
+    unlinkSync(outputFile);
+  });
+
+  it('mantém links de ativação e recuperação com finalidades separadas', async () => {
+    await seedOwner(database, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.finalidade@example.test',
+      setupToken: 'token-ficticio-de-ativacao',
+    });
+    await seedAccessToken(
+      database,
+      'lavacao-sol-owner',
+      'token-ficticio-de-recuperacao',
+      { purpose: 'RESET_PASSWORD' },
+    );
+
+    await request(app.getHttpServer())
+      .post('/api/auth/reset-password')
+      .send({
+        token: 'token-ficticio-de-ativacao',
+        password: 'Nova-senha-ficticia-123!',
+      })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({
+        token: 'token-ficticio-de-recuperacao',
+        password: 'Nova-senha-ficticia-123!',
+      })
+      .expect(400);
+  });
+
+  it('rejeita link de recuperação expirado, reutilizado ou sob abuso', async () => {
+    await seedOwner(database, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.links@example.test',
+      setupToken: 'token-ficticio-inicial',
+    });
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({
+        token: 'token-ficticio-inicial',
+        password: 'Senha-ficticia-123!',
+      })
+      .expect(204);
+    await seedAccessToken(
+      database,
+      'lavacao-sol-owner',
+      'token-ficticio-recuperacao-expirado',
+      {
+        purpose: 'RESET_PASSWORD',
+        expiresAt: new Date(Date.now() - 60_000),
+      },
+    );
+    await seedAccessToken(
+      database,
+      'lavacao-sol-owner',
+      'token-ficticio-recuperacao-valido',
+      { purpose: 'RESET_PASSWORD' },
+    );
+
+    await request(app.getHttpServer())
+      .post('/api/auth/reset-password')
+      .set('x-forwarded-for', '192.0.2.30')
+      .send({
+        token: 'token-ficticio-recuperacao-expirado',
+        password: 'Nova-senha-ficticia-123!',
+      })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/api/auth/reset-password')
+      .set('x-forwarded-for', '192.0.2.31')
+      .send({
+        token: 'token-ficticio-recuperacao-valido',
+        password: 'Nova-senha-ficticia-123!',
+      })
+      .expect(204);
+    await request(app.getHttpServer())
+      .post('/api/auth/reset-password')
+      .set('x-forwarded-for', '192.0.2.31')
+      .send({
+        token: 'token-ficticio-recuperacao-valido',
+        password: 'Outra-senha-ficticia-123!',
+      })
+      .expect(400);
+
+    // O reuso acima já conta como a primeira falha dessa origem.
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/auth/reset-password')
+        .set('x-forwarded-for', '192.0.2.32')
+        .send({
+          token: `token-recuperacao-invalido-${attempt}`,
+          password: 'Nova-senha-ficticia-123!',
+        })
+        .expect(400);
+    }
+    await request(app.getHttpServer())
+      .post('/api/auth/reset-password')
+      .set('x-forwarded-for', '192.0.2.32')
+      .send({
+        token: 'token-recuperacao-invalido-final',
+        password: 'Nova-senha-ficticia-123!',
+      })
+      .expect(429);
+  });
+
+  it('consome o link de recuperação atomicamente', async () => {
+    await seedOwner(database, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.concorrencia@example.test',
+      setupToken: 'token-ficticio-inicial',
+    });
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({
+        token: 'token-ficticio-inicial',
+        password: 'Senha-ficticia-123!',
+      })
+      .expect(204);
+    await seedAccessToken(
+      database,
+      'lavacao-sol-owner',
+      'token-ficticio-recuperacao-concorrente',
+      { purpose: 'RESET_PASSWORD' },
+    );
+
+    const attempts = await Promise.all([
+      request(app.getHttpServer()).post('/api/auth/reset-password').send({
+        token: 'token-ficticio-recuperacao-concorrente',
+        password: 'Nova-senha-ficticia-123!',
+      }),
+      request(app.getHttpServer()).post('/api/auth/reset-password').send({
+        token: 'token-ficticio-recuperacao-concorrente',
+        password: 'Nova-senha-ficticia-123!',
+      }),
+    ]);
+
+    expect(attempts.map((response) => response.status).sort()).toEqual([
+      204, 400,
+    ]);
   });
 
   afterAll(async () => {
@@ -490,6 +721,10 @@ async function seedAccessToken(
   database: TestDatabase,
   userId: string,
   token: string,
+  options: {
+    purpose?: 'SET_PASSWORD' | 'RESET_PASSWORD';
+    expiresAt?: Date;
+  } = {},
 ) {
   const client = database.client();
   await client.connect();
@@ -499,9 +734,9 @@ async function seedAccessToken(
       [
         randomUUID(),
         userId,
-        'SET_PASSWORD',
+        options.purpose ?? 'SET_PASSWORD',
         createHash('sha256').update(token).digest('hex'),
-        new Date(Date.now() + 3_600_000),
+        options.expiresAt ?? new Date(Date.now() + 3_600_000),
       ],
     );
   } finally {

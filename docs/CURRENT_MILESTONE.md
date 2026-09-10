@@ -4,15 +4,15 @@
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os dois primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os três primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-Ticket 2 do piloto, [issue #3](https://github.com/kauepacheco/nitivo/issues/3):
-convites privados de funcionários, aceite por pessoas novas ou com conta
-existente e revogação isolada por lavação.
+Ticket 3 do piloto, [issue #4](https://github.com/kauepacheco/nitivo/issues/4):
+recuperação assistida por link privado temporário, com nova senha definida pela
+própria pessoa e revogação das sessões anteriores.
 
 ## Concluído
 
@@ -62,26 +62,34 @@ existente e revogação isolada por lavação.
 - testes HTTP com PostgreSQL real cobrem dois tenants, restrição do funcionário,
   expiração, consumo concorrente e revogação; jornadas móveis cobrem convite,
   aceite, seleção do vínculo ativo, entrada e revogação.
+- operador gera recuperação somente para conta ativa após conferência humana,
+  com link de uma hora gravado em arquivo `0600` e sem envio automático;
+- token de recuperação tem finalidade própria, segredo armazenado como hash,
+  consumo atômico de uso único e limite persistido de tentativas;
+- redefinição revoga todas as sessões anteriores da identidade e exige login
+  normal; testes HTTP e de navegador cobrem expiração, reuso e concorrência;
+- procedimento de entrega privada e perda do canal conhecido registrado sem usar
+  dados do formulário público como prova de identidade.
 
 ## Objetivo atual
 
-Os dois primeiros tickets estão implementados localmente e validados com dados
+Os três primeiros tickets estão implementados localmente e validados com dados
 fictícios.
 O produto ainda não está pronto para demonstração remota ou piloto: faltam os
 incrementos seguintes, implantação e critérios operacionais e de privacidade.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação o ticket 3,
-[issue #4](https://github.com/kauepacheco/nitivo/issues/4): recuperação assistida
-de acesso por link temporário, com revogação das sessões antigas.
+Implementar em nova solicitação o ticket 4,
+[issue #5](https://github.com/kauepacheco/nitivo/issues/5): página pública móvel
+com os serviços ativos, preços e durações de uma lavação.
 
 ## Pendências de execução
 
-- aguardar nova solicitação antes de iniciar o ticket 3;
+- aguardar nova solicitação antes de iniciar o ticket 4;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar os tickets 3 a 22 em sequência;
+- implementar e verificar os tickets 4 a 22 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 - preservar as alterações locais anteriores no backend, catálogo e skills.

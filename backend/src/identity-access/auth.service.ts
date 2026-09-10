@@ -29,12 +29,43 @@ export class AuthService {
     password: string,
     remoteAddress: string,
   ): Promise<void> {
+    await this.changePassword(
+      token,
+      password,
+      remoteAddress,
+      AccessTokenPurpose.SET_PASSWORD,
+      'set-password',
+    );
+  }
+
+  async resetPassword(
+    token: string,
+    password: string,
+    remoteAddress: string,
+  ): Promise<void> {
+    await this.changePassword(
+      token,
+      password,
+      remoteAddress,
+      AccessTokenPurpose.RESET_PASSWORD,
+      'reset-password',
+    );
+  }
+
+  private async changePassword(
+    token: string,
+    password: string,
+    remoteAddress: string,
+    purpose: AccessTokenPurpose,
+    throttleScope: string,
+  ): Promise<void> {
     const now = new Date();
     const tokenHash = hashSecret(token);
-    const attemptKey = hashSecret(`set-password|${remoteAddress}`);
+    const attemptKey = hashSecret(`${throttleScope}|${remoteAddress}`);
     await this.throttle.assertAllowed(attemptKey);
     const accessToken = await this.prisma.accessToken.findUnique({
       where: { tokenHash },
+      include: { user: { select: { passwordHash: true } } },
     });
 
     if (!accessToken) {
@@ -42,9 +73,13 @@ export class AuthService {
       throw new BadRequestException('Link inválido, expirado ou já utilizado');
     }
     if (
-      accessToken.purpose !== AccessTokenPurpose.SET_PASSWORD ||
+      accessToken.purpose !== purpose ||
       accessToken.consumedAt ||
-      accessToken.expiresAt <= now
+      accessToken.expiresAt <= now ||
+      (purpose === AccessTokenPurpose.SET_PASSWORD &&
+        accessToken.user.passwordHash !== null) ||
+      (purpose === AccessTokenPurpose.RESET_PASSWORD &&
+        accessToken.user.passwordHash === null)
     ) {
       await this.throttle.recordFailure(attemptKey);
       throw new BadRequestException('Link inválido, expirado ou já utilizado');

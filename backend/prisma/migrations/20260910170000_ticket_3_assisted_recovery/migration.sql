@@ -1,0 +1,1 @@
+ALTER TYPE "AccessTokenPurpose" ADD VALUE 'RESET_PASSWORD';

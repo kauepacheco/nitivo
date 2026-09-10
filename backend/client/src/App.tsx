@@ -39,7 +39,10 @@ export function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (window.location.pathname === '/set-password') {
+    if (
+      window.location.pathname === '/set-password' ||
+      window.location.pathname === '/reset-password'
+    ) {
       setLoading(false);
       return;
     }
@@ -54,6 +57,9 @@ export function App() {
   }
   if (window.location.pathname === '/set-password') {
     return <SetPassword token={setupToken} />;
+  }
+  if (window.location.pathname === '/reset-password') {
+    return <ResetPassword token={setupToken} />;
   }
   if (window.location.pathname === '/accept-invitation') {
     return (
@@ -128,6 +134,56 @@ function SetPassword({ token }: { token: string | null }) {
             />
           </label>
           <button type="submit">Definir senha</button>
+        </form>
+      )}
+      <Status message={message} />
+    </main>
+  );
+}
+
+function ResetPassword({ token }: { token: string | null }) {
+  const [message, setMessage] = useState('');
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await api('/api/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password: form.get('password') }),
+      });
+      window.history.replaceState({}, '', '/');
+      window.location.reload();
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  return (
+    <main className="center-card">
+      <Brand />
+      <h1>Redefina sua senha</h1>
+      <p>
+        Este link é privado, temporário e funciona uma única vez. Depois, entre
+        normalmente com a nova senha.
+      </p>
+      {!token ? (
+        <div role="alert" className="error">
+          Link inválido.
+        </div>
+      ) : (
+        <form onSubmit={submit}>
+          <label>
+            Nova senha
+            <input
+              name="password"
+              type="password"
+              minLength={12}
+              required
+              autoComplete="new-password"
+            />
+          </label>
+          <button type="submit">Redefinir senha</button>
         </form>
       )}
       <Status message={message} />
