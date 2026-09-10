@@ -27,6 +27,10 @@ export class AuthenticationThrottleService {
       now.getTime() - AUTHENTICATION_WINDOW_MINUTES * 60_000,
     );
     await this.prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw`
+        SELECT 1 AS "locked"
+        FROM pg_advisory_xact_lock(hashtextextended(${key}, 0))
+      `;
       const current = await transaction.authenticationThrottle.findUnique({
         where: { key },
       });

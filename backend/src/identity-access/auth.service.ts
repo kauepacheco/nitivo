@@ -17,6 +17,20 @@ import { AuthenticatedSession } from './auth.types';
 import { hashSecret } from './hash-secret';
 import { hashPassword } from './password-hash';
 
+const PASSWORD_TOKEN_POLICIES: Record<
+  AccessTokenPurpose,
+  { throttleScope: string; requiresExistingPassword: boolean }
+> = {
+  [AccessTokenPurpose.SET_PASSWORD]: {
+    throttleScope: 'set-password',
+    requiresExistingPassword: false,
+  },
+  [AccessTokenPurpose.RESET_PASSWORD]: {
+    throttleScope: 'reset-password',
+    requiresExistingPassword: true,
+  },
+};
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -34,7 +48,6 @@ export class AuthService {
       password,
       remoteAddress,
       AccessTokenPurpose.SET_PASSWORD,
-      'set-password',
     );
   }
 
@@ -48,7 +61,6 @@ export class AuthService {
       password,
       remoteAddress,
       AccessTokenPurpose.RESET_PASSWORD,
-      'reset-password',
     );
   }
 
@@ -57,11 +69,11 @@ export class AuthService {
     password: string,
     remoteAddress: string,
     purpose: AccessTokenPurpose,
-    throttleScope: string,
   ): Promise<void> {
+    const policy = PASSWORD_TOKEN_POLICIES[purpose];
     const now = new Date();
     const tokenHash = hashSecret(token);
-    const attemptKey = hashSecret(`${throttleScope}|${remoteAddress}`);
+    const attemptKey = hashSecret(`${policy.throttleScope}|${remoteAddress}`);
     await this.throttle.assertAllowed(attemptKey);
     const accessToken = await this.prisma.accessToken.findUnique({
       where: { tokenHash },
@@ -76,10 +88,8 @@ export class AuthService {
       accessToken.purpose !== purpose ||
       accessToken.consumedAt ||
       accessToken.expiresAt <= now ||
-      (purpose === AccessTokenPurpose.SET_PASSWORD &&
-        accessToken.user.passwordHash !== null) ||
-      (purpose === AccessTokenPurpose.RESET_PASSWORD &&
-        accessToken.user.passwordHash === null)
+      (accessToken.user.passwordHash !== null) !==
+        policy.requiresExistingPassword
     ) {
       await this.throttle.recordFailure(attemptKey);
       throw new BadRequestException('Link inválido, expirado ou já utilizado');

@@ -4,13 +4,10 @@ import {
   MembershipStatus,
   PrismaClient,
 } from '@prisma/client';
-import { randomBytes } from 'node:crypto';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
+import { prepareAccessRecovery } from '../identity-access/access-recovery';
 import { hashSecret } from '../identity-access/hash-secret';
-
-const RECOVERY_VALIDITY_HOURS = 1;
+import { persistWithPrivateLink } from './private-link-file';
 
 const { values } = parseArgs({
   options: {
@@ -36,62 +33,62 @@ function required(value: string | undefined, name: string): string {
 }
 
 async function main() {
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: {
-      id: true,
-      passwordHash: true,
-      memberships: {
-        where: { status: MembershipStatus.ACTIVE },
-        select: { id: true },
-        take: 1,
+  const recovery = await prepareAccessRecovery(
+    {
+      findByEmail: async (accountEmail) => {
+        const user = await prisma.user.findUnique({
+          where: { email: accountEmail },
+          select: {
+            id: true,
+            passwordHash: true,
+            memberships: {
+              where: { status: MembershipStatus.ACTIVE },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        });
+        return user
+          ? {
+              id: user.id,
+              hasPassword: user.passwordHash !== null,
+              hasActiveMembership: user.memberships.length > 0,
+            }
+          : null;
       },
     },
-  });
-  if (!user?.passwordHash || user.memberships.length === 0) {
-    throw new Error('Conta ativa não encontrada');
-  }
+    email,
+  );
 
-  const now = new Date();
-  const rawToken = randomBytes(32).toString('base64url');
   const recoveryUrl = new URL(
     '/reset-password',
     process.env.APP_URL ?? 'http://127.0.0.1:3000',
   );
-  recoveryUrl.searchParams.set('token', rawToken);
+  recoveryUrl.searchParams.set('token', recovery.rawToken);
 
-  await mkdir(dirname(outputFile), { recursive: true, mode: 0o700 });
-  await writeFile(outputFile, `${recoveryUrl.toString()}\n`, {
-    encoding: 'utf8',
-    mode: 0o600,
-    flag: 'wx',
+  await persistWithPrivateLink({
+    outputFile,
+    url: recoveryUrl,
+    persist: () =>
+      prisma.$transaction(async (transaction) => {
+        await transaction.accessToken.updateMany({
+          where: {
+            userId: recovery.userId,
+            purpose: AccessTokenPurpose.RESET_PASSWORD,
+            consumedAt: null,
+          },
+          data: { consumedAt: recovery.createdAt },
+        });
+        await transaction.accessToken.create({
+          data: {
+            userId: recovery.userId,
+            purpose: AccessTokenPurpose.RESET_PASSWORD,
+            tokenHash: hashSecret(recovery.rawToken),
+            expiresAt: recovery.expiresAt,
+          },
+        });
+      }),
   });
-
-  try {
-    await prisma.$transaction(async (transaction) => {
-      await transaction.accessToken.updateMany({
-        where: {
-          userId: user.id,
-          purpose: AccessTokenPurpose.RESET_PASSWORD,
-          consumedAt: null,
-        },
-        data: { consumedAt: now },
-      });
-      await transaction.accessToken.create({
-        data: {
-          userId: user.id,
-          purpose: AccessTokenPurpose.RESET_PASSWORD,
-          tokenHash: hashSecret(rawToken),
-          expiresAt: new Date(
-            now.getTime() + RECOVERY_VALIDITY_HOURS * 3_600_000,
-          ),
-        },
-      });
-    });
-  } catch (error) {
-    await unlink(outputFile).catch(() => undefined);
-    throw error;
-  }
   process.stdout.write('Link privado gravado no arquivo indicado.\n');
 }
 

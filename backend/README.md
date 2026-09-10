@@ -114,6 +114,8 @@ Em produção, a sessão usa cookie `Secure`, `HttpOnly` e `SameSite=Strict`.
 Operações autenticadas que alteram estado também exigem o token CSRF devolvido
 pelo login. Sessões têm expiração por 30 minutos de inatividade e limite absoluto
 de 12 horas; logout e definição de uma nova senha revogam sessões persistidas.
+Conforme a implantação aprovada, a API confia em exatamente um proxy reverso para
+identificar a origem usada nos limites persistidos de tentativas.
 
 ## Verificações
 

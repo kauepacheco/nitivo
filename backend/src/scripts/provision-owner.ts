@@ -5,10 +5,9 @@ import {
   PrismaClient,
 } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 import { hashSecret } from '../identity-access/hash-secret';
+import { persistWithPrivateLink } from './private-link-file';
 
 const { values } = parseArgs({
   options: {
@@ -52,41 +51,34 @@ async function main() {
   const setupUrl = new URL('/set-password', appUrl);
   setupUrl.searchParams.set('token', rawToken);
 
-  await mkdir(dirname(outputFile), { recursive: true, mode: 0o700 });
-  await writeFile(outputFile, `${setupUrl.toString()}\n`, {
-    encoding: 'utf8',
-    mode: 0o600,
-    flag: 'wx',
+  await persistWithPrivateLink({
+    outputFile,
+    url: setupUrl,
+    persist: () =>
+      prisma.$transaction(async (transaction) => {
+        const carWash = await transaction.carWash.create({
+          data: { name: carWashName, slug },
+        });
+        const user = await transaction.user.create({
+          data: { email: ownerEmail },
+        });
+        await transaction.membership.create({
+          data: {
+            userId: user.id,
+            carWashId: carWash.id,
+            role: MembershipRole.OWNER,
+          },
+        });
+        await transaction.accessToken.create({
+          data: {
+            userId: user.id,
+            purpose: AccessTokenPurpose.SET_PASSWORD,
+            tokenHash,
+            expiresAt,
+          },
+        });
+      }),
   });
-
-  try {
-    await prisma.$transaction(async (transaction) => {
-      const carWash = await transaction.carWash.create({
-        data: { name: carWashName, slug },
-      });
-      const user = await transaction.user.create({
-        data: { email: ownerEmail },
-      });
-      await transaction.membership.create({
-        data: {
-          userId: user.id,
-          carWashId: carWash.id,
-          role: MembershipRole.OWNER,
-        },
-      });
-      await transaction.accessToken.create({
-        data: {
-          userId: user.id,
-          purpose: AccessTokenPurpose.SET_PASSWORD,
-          tokenHash,
-          expiresAt,
-        },
-      });
-    });
-  } catch (error) {
-    await unlink(outputFile).catch(() => undefined);
-    throw error;
-  }
   process.stdout.write('Link privado gravado no arquivo indicado.\n');
 }
 

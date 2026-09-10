@@ -578,8 +578,7 @@ describe('Nitivo API (e2e)', () => {
       })
       .expect(400);
 
-    // O reuso acima já conta como a primeira falha dessa origem.
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
       await request(app.getHttpServer())
         .post('/api/auth/reset-password')
         .set('x-forwarded-for', '192.0.2.32')
@@ -597,6 +596,40 @@ describe('Nitivo API (e2e)', () => {
         password: 'Nova-senha-ficticia-123!',
       })
       .expect(429);
+  });
+
+  it('contabiliza tentativas concorrentes por origem atrás do proxy', async () => {
+    const attempts = await Promise.all(
+      Array.from({ length: 5 }, (_, attempt) =>
+        request(app.getHttpServer())
+          .post('/api/auth/reset-password')
+          .set('x-forwarded-for', '192.0.2.40')
+          .send({
+            token: `token-concorrente-invalido-${attempt}`,
+            password: 'Nova-senha-ficticia-123!',
+          }),
+      ),
+    );
+    expect(attempts.map((response) => response.status)).toEqual([
+      400, 400, 400, 400, 400,
+    ]);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/reset-password')
+      .set('x-forwarded-for', '192.0.2.40')
+      .send({
+        token: 'token-concorrente-bloqueado',
+        password: 'Nova-senha-ficticia-123!',
+      })
+      .expect(429);
+    await request(app.getHttpServer())
+      .post('/api/auth/reset-password')
+      .set('x-forwarded-for', '192.0.2.41')
+      .send({
+        token: 'token-de-outra-origem',
+        password: 'Nova-senha-ficticia-123!',
+      })
+      .expect(400);
   });
 
   it('consome o link de recuperação atomicamente', async () => {

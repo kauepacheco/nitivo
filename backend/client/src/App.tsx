@@ -95,60 +95,53 @@ export function App() {
 }
 
 function SetPassword({ token }: { token: string | null }) {
-  const [message, setMessage] = useState('');
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    try {
-      await api('/api/auth/set-password', {
-        method: 'POST',
-        body: JSON.stringify({ token, password: form.get('password') }),
-      });
-      window.history.replaceState({}, '', '/');
-      window.location.reload();
-    } catch (error) {
-      setMessage(errorMessage(error));
-    }
-  }
-
   return (
-    <main className="center-card">
-      <Brand />
-      <h1>Crie sua senha</h1>
-      <p>Este link é privado, temporário e funciona uma única vez.</p>
-      {!token ? (
-        <div role="alert" className="error">
-          Link inválido.
-        </div>
-      ) : (
-        <form onSubmit={submit}>
-          <label>
-            Senha
-            <input
-              name="password"
-              type="password"
-              minLength={12}
-              required
-              autoComplete="new-password"
-            />
-          </label>
-          <button type="submit">Definir senha</button>
-        </form>
-      )}
-      <Status message={message} />
-    </main>
+    <PasswordLinkForm
+      token={token}
+      endpoint="/api/auth/set-password"
+      heading="Crie sua senha"
+      description="Este link é privado, temporário e funciona uma única vez."
+      fieldLabel="Senha"
+      buttonLabel="Definir senha"
+    />
   );
 }
 
 function ResetPassword({ token }: { token: string | null }) {
+  return (
+    <PasswordLinkForm
+      token={token}
+      endpoint="/api/auth/reset-password"
+      heading="Redefina sua senha"
+      description="Este link é privado, temporário e funciona uma única vez. Depois, entre normalmente com a nova senha."
+      fieldLabel="Nova senha"
+      buttonLabel="Redefinir senha"
+    />
+  );
+}
+
+function PasswordLinkForm({
+  token,
+  endpoint,
+  heading,
+  description,
+  fieldLabel,
+  buttonLabel,
+}: {
+  token: string | null;
+  endpoint: '/api/auth/set-password' | '/api/auth/reset-password';
+  heading: string;
+  description: string;
+  fieldLabel: string;
+  buttonLabel: string;
+}) {
   const [message, setMessage] = useState('');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
-      await api('/api/auth/reset-password', {
+      await api(endpoint, {
         method: 'POST',
         body: JSON.stringify({ token, password: form.get('password') }),
       });
@@ -162,11 +155,8 @@ function ResetPassword({ token }: { token: string | null }) {
   return (
     <main className="center-card">
       <Brand />
-      <h1>Redefina sua senha</h1>
-      <p>
-        Este link é privado, temporário e funciona uma única vez. Depois, entre
-        normalmente com a nova senha.
-      </p>
+      <h1>{heading}</h1>
+      <p>{description}</p>
       {!token ? (
         <div role="alert" className="error">
           Link inválido.
@@ -174,7 +164,7 @@ function ResetPassword({ token }: { token: string | null }) {
       ) : (
         <form onSubmit={submit}>
           <label>
-            Nova senha
+            {fieldLabel}
             <input
               name="password"
               type="password"
@@ -183,7 +173,7 @@ function ResetPassword({ token }: { token: string | null }) {
               autoComplete="new-password"
             />
           </label>
-          <button type="submit">Redefinir senha</button>
+          <button type="submit">{buttonLabel}</button>
         </form>
       )}
       <Status message={message} />
