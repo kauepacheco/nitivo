@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { execFileSync, spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -161,6 +162,165 @@ test('cliente consulta serviços ativos e contato da lavação no celular', asyn
   await expect(page.getByText('Contato: +5511999990001')).toBeVisible();
   await expect(page.getByText('Serviço inativo')).not.toBeVisible();
 });
+
+test('troca de lavação só permite salvar o contato depois de carregar o perfil correto', async ({
+  page,
+}) => {
+  await openOwnerWithTwoCarWashes(page);
+  const phone = page.getByLabel('Telefone operacional com DDD');
+  const save = page.getByRole('button', {
+    name: 'Salvar informações públicas',
+  });
+  await expect(phone).toHaveValue('5511999990001');
+
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(
+    '**/api/car-washes/lavacao-lua/public-profile',
+    async (route) => {
+      await pending;
+      await route.continue();
+    },
+  );
+  try {
+    await page
+      .getByLabel('Lavação ativa')
+      .selectOption({ label: 'Lavação Lua' });
+    await expect(phone).toBeDisabled();
+    await expect(phone).toHaveValue('');
+    await expect(save).toBeDisabled();
+  } finally {
+    release();
+  }
+  await expect(phone).toHaveValue('5521999990002');
+  await phone.fill('(21) 99999-0003');
+  await save.click();
+  await expect(
+    page.getByText('Informações públicas atualizadas.'),
+  ).toBeVisible();
+
+  await page.goto(`${baseUrl}/lavacoes/lavacao-lua`);
+  await expect(page.getByText('Contato: +5521999990003')).toBeVisible();
+  await page.goto(`${baseUrl}/lavacoes/lavacao-sol`);
+  await expect(page.getByText('Contato: +5511999990001')).toBeVisible();
+});
+
+test('falha ao carregar outra lavação mantém o contato bloqueado até uma nova consulta', async ({
+  page,
+}) => {
+  await openOwnerWithTwoCarWashes(page);
+  const phone = page.getByLabel('Telefone operacional com DDD');
+  const save = page.getByRole('button', {
+    name: 'Salvar informações públicas',
+  });
+  await expect(phone).toHaveValue('5511999990001');
+  await page.route('**/api/car-washes/lavacao-lua/public-profile', (route) =>
+    route.fulfill({
+      status: 503,
+      json: { message: 'Contato temporariamente indisponível.' },
+    }),
+  );
+  await page.getByLabel('Lavação ativa').selectOption({ label: 'Lavação Lua' });
+  await expect(
+    page.getByText('Contato temporariamente indisponível.'),
+  ).toBeVisible();
+  await expect(phone).toHaveValue('');
+  await expect(phone).toBeDisabled();
+  await expect(save).toBeDisabled();
+
+  await page.unroute('**/api/car-washes/lavacao-lua/public-profile');
+  await page.reload();
+  await page.getByLabel('Lavação ativa').selectOption({ label: 'Lavação Lua' });
+  await expect(phone).toHaveValue('5521999990002');
+  await expect(save).toBeEnabled();
+});
+
+for (const method of ['GET', 'PATCH']) {
+  test(`resposta atrasada de ${method} não substitui o contato da lavação ativa`, async ({
+    page,
+  }) => {
+    await openOwnerWithTwoCarWashes(page);
+    const phone = page.getByLabel('Telefone operacional com DDD');
+    const save = page.getByRole('button', {
+      name: 'Salvar informações públicas',
+    });
+    await expect(phone).toHaveValue('5511999990001');
+    if (method === 'PATCH') {
+      await page
+        .getByLabel('Lavação ativa')
+        .selectOption({ label: 'Lavação Lua' });
+      await expect(phone).toHaveValue('5521999990002');
+      await phone.fill('(21) 99999-0003');
+    }
+
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let responseReady!: () => void;
+    const ready = new Promise<void>((resolve) => {
+      responseReady = resolve;
+    });
+    await page.route(
+      '**/api/car-washes/lavacao-lua/public-profile',
+      async (route) => {
+        const response = await route.fetch();
+        responseReady();
+        await pending;
+        await route.fulfill({ response });
+      },
+    );
+    try {
+      if (method === 'GET') {
+        await page
+          .getByLabel('Lavação ativa')
+          .selectOption({ label: 'Lavação Lua' });
+      } else {
+        await save.click();
+      }
+      await ready;
+      await page
+        .getByLabel('Lavação ativa')
+        .selectOption({ label: 'Lavação Sol' });
+      await expect(phone).toHaveValue('5511999990001');
+      const delivered = page.waitForResponse(
+        (response) =>
+          response
+            .url()
+            .endsWith('/api/car-washes/lavacao-lua/public-profile') &&
+          response.request().method() === method,
+      );
+      release();
+      await (await delivered).finished();
+      // Deixa o navegador processar a resposta e renderizar antes de conferir o formulário.
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          }),
+      );
+      await expect(phone).toHaveValue('5511999990001');
+      await save.click();
+      await expect(
+        page.getByText('Informações públicas atualizadas.'),
+      ).toBeVisible();
+    } finally {
+      release();
+    }
+    await page.goto(`${baseUrl}/lavacoes/lavacao-sol`);
+    await expect(page.getByText('Contato: +5511999990001')).toBeVisible();
+    await page.goto(`${baseUrl}/lavacoes/lavacao-lua`);
+    await expect(
+      page.getByText(
+        method === 'PATCH'
+          ? 'Contato: +5521999990003'
+          : 'Contato: +5521999990002',
+      ),
+    ).toBeVisible();
+  });
+}
 
 test('proprietário convida e revoga uma funcionária pela interface', async ({
   page,
@@ -332,6 +492,42 @@ test('pessoa recupera o acesso por link privado no celular', async ({
     page.getByRole('heading', { name: 'Serviços da sua lavação' }),
   ).toBeVisible();
 });
+
+async function openOwnerWithTwoCarWashes(page: Page) {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const setupLink = provisionOwner({
+    baseUrl,
+    carWashName: 'Lavação Sol',
+    slug: 'lavacao-sol',
+    email: 'dona.comum@example.test',
+  });
+  // O provisionamento atual cria apenas o primeiro vínculo de proprietário.
+  const client = database.client();
+  await client.connect();
+  try {
+    await client.query(
+      'UPDATE "CarWash" SET "operationalContactPhone" = $1 WHERE slug = $2',
+      ['5511999990001', 'lavacao-sol'],
+    );
+    await client.query(
+      'INSERT INTO "CarWash" (id, name, slug, "operationalContactPhone") VALUES ($1, $2, $1, $3)',
+      ['lavacao-lua', 'Lavação Lua', '5521999990002'],
+    );
+    await client.query(
+      'INSERT INTO "Membership" (id, "userId", "carWashId", role) SELECT $1, id, $2, $3 FROM "User" WHERE email = $4',
+      ['proprietaria-lua', 'lavacao-lua', 'OWNER', 'dona.comum@example.test'],
+    );
+  } finally {
+    await client.end();
+  }
+  await page.goto(setupLink);
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Definir senha' }).click();
+  await page.getByLabel('E-mail').fill('dona.comum@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByLabel('Lavação ativa').selectOption({ label: 'Lavação Sol' });
+}
 
 function provisionOwner(input: {
   baseUrl: string;

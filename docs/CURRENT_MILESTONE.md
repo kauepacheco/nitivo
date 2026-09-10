@@ -4,15 +4,15 @@
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os três primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os quatro primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-Ticket 3 do piloto, [issue #4](https://github.com/kauepacheco/nitivo/issues/4):
-recuperação assistida por link privado temporário, com nova senha definida pela
-própria pessoa e revogação das sessões anteriores.
+Ticket 4 do piloto, [issue #5](https://github.com/kauepacheco/nitivo/issues/5):
+página pública da lavação com serviços ativos, preços, durações e contato
+operacional configurável pelo proprietário.
 
 ## Concluído
 
@@ -72,6 +72,10 @@ própria pessoa e revogação das sessões anteriores.
   dados do formulário público como prova de identidade.
 - página pública móvel por slug exibe a lavação e somente seus serviços ativos,
   com preços e durações; endpoint público mantém o isolamento entre lavações.
+- formulário do proprietário reinicia ao trocar de lavação e só permite editar
+  o contato após carregar o perfil correspondente; regressões no navegador
+  cobrem carregamento lento, falha de consulta e respostas atrasadas de leitura
+  e salvamento, conferindo os contatos nas páginas públicas das duas lavações.
 
 ## Objetivo atual
 

@@ -91,6 +91,7 @@ export function App() {
     ) ?? session.user.memberships[0];
   return membership.role === 'OWNER' ? (
     <OwnerWorkspace
+      key={membership.carWashId}
       session={session}
       membership={membership}
       onSelectCarWash={setSelectedCarWashId}
@@ -434,6 +435,10 @@ function OwnerWorkspace({
 }) {
   const [services, setServices] = useState<ServiceOffering[]>([]);
   const [operationalContactPhone, setOperationalContactPhone] = useState('');
+  const [publicProfileLoaded, setPublicProfileLoaded] = useState(false);
+  const [publicProfileMessage, setPublicProfileMessage] = useState(
+    'Carregando informações públicas…',
+  );
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -445,14 +450,17 @@ function OwnerWorkspace({
     void api<{ operationalContactPhone: string | null }>(
       `/api/car-washes/${membership.carWashId}/public-profile`,
     )
-      .then((profile) =>
-        setOperationalContactPhone(profile.operationalContactPhone ?? ''),
-      )
-      .catch((error) => setMessage(errorMessage(error)));
+      .then((profile) => {
+        setOperationalContactPhone(profile.operationalContactPhone ?? '');
+        setPublicProfileLoaded(true);
+        setPublicProfileMessage('');
+      })
+      .catch((error) => setPublicProfileMessage(errorMessage(error)));
   }, [membership.carWashId]);
 
   async function updatePublicProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!publicProfileLoaded) return;
     const form = new FormData(event.currentTarget);
     try {
       const profile = await api<{ operationalContactPhone: string }>(
@@ -466,9 +474,9 @@ function OwnerWorkspace({
         },
       );
       setOperationalContactPhone(profile.operationalContactPhone);
-      setMessage('Informações públicas atualizadas.');
+      setPublicProfileMessage('Informações públicas atualizadas.');
     } catch (error) {
-      setMessage(errorMessage(error));
+      setPublicProfileMessage(errorMessage(error));
     }
   }
 
@@ -521,6 +529,7 @@ function OwnerWorkspace({
             <input
               name="operationalContactPhone"
               type="tel"
+              disabled={!publicProfileLoaded}
               value={operationalContactPhone}
               onChange={(event) =>
                 setOperationalContactPhone(event.target.value)
@@ -529,8 +538,11 @@ function OwnerWorkspace({
               required
             />
           </label>
-          <button type="submit">Salvar informações públicas</button>
+          <button type="submit" disabled={!publicProfileLoaded}>
+            Salvar informações públicas
+          </button>
         </form>
+        <Status message={publicProfileMessage} />
       </section>
       <div className="columns">
         <section className="panel">
