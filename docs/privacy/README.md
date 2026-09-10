@@ -2,7 +2,7 @@
 
 Esta pasta concentrará os artefatos de privacidade necessários à evolução do Nitivo. A documentação técnica auxilia a conformidade, mas não substitui revisão jurídica e operacional antes do piloto.
 
-## Durante o ambiente educacional
+## Durante desenvolvimento e testes
 
 - utilizar exclusivamente dados fictícios;
 - impedir segredos e dados pessoais em commits e logs;
@@ -31,3 +31,21 @@ Criar e revisar, no mínimo:
 - registro da revisão jurídica e operacional.
 
 Nenhum dado pessoal real deve ser introduzido apenas porque uma funcionalidade técnica ficou pronta.
+
+## Recorte de dados definido para o primeiro piloto
+
+O planejamento atual limita o formulário de autoagendamento a nome, telefone e
+placa. As finalidades previstas são identificar o cliente no atendimento,
+permitir contato operacional e identificar o veículo, respectivamente. Esse
+recorte ainda deve integrar o inventário e a revisão anteriores ao piloto.
+
+O cliente não precisa de conta nem informa e-mail. O telefone digitado não tem
+posse verificada automaticamente; não autoriza consulta de histórico ou acesso
+a outros cadastros. Solicitações de cancelamento e reagendamento chegam pelo
+WhatsApp e são conferidas e executadas pela equipe autenticada no Nitivo.
+
+O botão de contato abre o WhatsApp da lavação com texto preenchido, sujeito a
+envio pelo próprio cliente. Delimitar os dados incluídos nesse texto e registrar
+esse fluxo no inventário; não incluir senha, token de acesso ou dados de outros
+clientes. A coleta e os canais de acesso da equipe são tratados separadamente
+do formulário do cliente.

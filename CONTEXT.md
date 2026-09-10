@@ -14,11 +14,11 @@ Fronteira de isolamento dos dados e das operações de uma lavação. Nenhuma pe
 
 ### Pessoa usuária
 
-Pessoa que possui uma única conta no Nitivo. A mesma pessoa pode se relacionar com mais de uma lavação e exercer papéis diferentes em cada uma.
+Pessoa que possui uma única conta no Nitivo. A mesma pessoa pode se relacionar com mais de uma lavação; ser cliente de uma lavação não exige possuir essa conta.
 
 ### Vínculo
 
-Relação entre uma pessoa usuária e uma lavação. O vínculo determina o papel exercido naquele tenant: `OWNER`, `EMPLOYEE` ou `CUSTOMER`.
+Relação entre uma pessoa usuária e uma lavação que determina seu papel naquele tenant. No primeiro piloto, os vínculos de acesso são de proprietário ou funcionário; clientes reservam sem conta.
 
 ### Proprietário (`OWNER`)
 
@@ -28,9 +28,13 @@ Pessoa responsável por administrar a lavação, seus usuários, recursos, servi
 
 Pessoa vinculada à equipe da lavação e autorizada a acompanhar a agenda e executar operações de atendimento permitidas no MVP.
 
-### Cliente (`CUSTOMER`)
+### Cliente
 
-Pessoa que administra seus veículos e solicita atendimentos em uma lavação.
+Pessoa que solicita ou recebe atendimentos em uma lavação, com ou sem conta no Nitivo. Seu cadastro de cliente pertence à lavação e não concede acesso aos dados de outras pessoas ou empresas.
+
+### Papel de cliente (`CUSTOMER`)
+
+Papel de uma pessoa usuária vinculada como cliente a uma lavação. Um cliente sem conta não possui esse vínculo; o uso do papel para contas de clientes será reavaliado após o primeiro piloto.
 
 ### Serviço
 
@@ -46,7 +50,23 @@ Reserva de atendimento que relaciona cliente, veículo, serviço, horário e um 
 
 ### Encaixe
 
-Agendamento criado pela equipe da lavação. Está sujeito às mesmas regras de disponibilidade e conflito aplicadas ao agendamento criado pelo cliente.
+Agendamento criado pela equipe da lavação, inclusive para início imediato. Respeita capacidade, expediente e bloqueios, com dispensa da antecedência mínima exigida no autoagendamento.
+
+### Autoagendamento
+
+Agendamento feito pelo próprio cliente, que escolhe o serviço e um horário disponível sem precisar que a equipe faça a reserva por ele. A confirmação segue a regra da lavação.
+
+### Solicitação de alteração
+
+Pedido do cliente para cancelar ou reagendar um atendimento, recebido pela equipe da lavação. O pedido é distinto da alteração efetivada na agenda.
+
+### Reagendamento
+
+Troca do horário de uma reserva, sujeita à disponibilidade do novo período. A reserva original é preservada se a troca não puder ser concluída.
+
+### Assinatura do Nitivo
+
+Contratação do uso do Nitivo pela lavação mediante mensalidade. É distinta do pagamento feito pelo cliente por um atendimento.
 
 ### Disponibilidade
 

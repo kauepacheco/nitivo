@@ -4,6 +4,14 @@ Nitivo é uma ferramenta de gerenciamento para lava-jatos e estéticas automotiv
 
 A solução permite que donos de lava-jatos gerenciem seus negócios de forma fácil e rápida. A plataforma também permite que os clientes reservem horários.
 
+O objetivo atual é construir e validar um SaaS comercial. O aprendizado de
+programação deixou de ser uma condição para o avanço do projeto.
+
+O primeiro incremento do piloto já entrega acesso assistido do proprietário e
+cadastro persistido de serviços. As funcionalidades abaixo descrevem o produto
+planejado; o estado de implementação está no
+[marco atual](docs/CURRENT_MILESTONE.md).
+
 ## Usuários do sistema
 
 - Donos de lava-jatos
@@ -12,43 +20,67 @@ A solução permite que donos de lava-jatos gerenciem seus negócios de forma f�
 
 ## Funcionalidades do MVP
 
+O recorte do primeiro piloto está consolidado no
+[planejamento do SaaS](docs/SAAS_PLAN.md), aprovado pelo proprietário com sua
+proposta técnica e cronograma estimado. Os tickets são implementados em sequência;
+o primeiro está concluído e os seguintes aguardam novas solicitações.
+As decisões confirmadas para o produto
+incluem autoagendamento sem conta obrigatória, reserva por box e painel do
+proprietário, sem pagamento online. Os demais itens abaixo descrevem o escopo
+mais amplo previsto e ainda serão delimitados para o piloto.
+
 ### Para o cliente
 
 - Visualizar a página e os serviços da lavação
-- Criar uma conta
-- Cadastrar veículos
+- Reservar sem precisar criar uma conta no primeiro piloto
+- Informar nome, telefone e placa do veículo
 - Consultar a disponibilidade de horários
 - Agendar atendimentos
-- Cancelar e reagendar atendimentos conforme as regras configuradas
-- Acompanhar o status do atendimento
-- Consultar o histórico de atendimentos
+- Abrir conversa no WhatsApp da lavação com o resumo da reserva
+- Solicitar cancelamento e reagendamento pelo WhatsApp, conforme as regras da lavação; a equipe efetiva a alteração no Nitivo
+- Acompanhar o status do atendimento (fora do recorte já confirmado do piloto)
+- Consultar o histórico de atendimentos (fora do recorte já confirmado do piloto)
+
+Conta de cliente e acesso a histórico consolidado serão reavaliados após o
+primeiro piloto. Não há consulta pública de reservas por telefone, placa ou
+identificador. O telefone informado não é verificado automaticamente; abrir o
+WhatsApp não comprova envio de mensagem nem posse desse telefone.
+
+A reserva permanece confirmada mesmo sem mensagem enviada. A equipe acompanha
+a agenda no Nitivo e pode usar o telefone informado para contato operacional.
+No cancelamento solicitado dentro do prazo, vale o horário de envio conferido
+pela equipe, mesmo se a mensagem for lida depois. A vaga só é liberada após
+registrar o cancelamento no Nitivo. Reagendamento malsucedido preserva a reserva
+original.
 
 ### Para o proprietário e seus funcionários
 
 - Visualizar a agenda diária
 - Cadastrar encaixes
-- Confirmar, iniciar, concluir e cancelar atendimentos
+- Iniciar, concluir, cancelar, marcar faltas e reagendar atendimentos
 - Administrar clientes e veículos
-- Configurar horários, exceções e bloqueios
-- Administrar boxes
-- Cadastrar e desativar serviços
-- Convidar e desativar funcionários
 
 ### Exclusivamente para o proprietário
 
 - Configurar as regras da lavação
-- Visualizar indicadores básicos:
+- Configurar horários, exceções e bloqueios
+- Administrar boxes
+- Cadastrar e desativar serviços
+- Convidar e desativar funcionários
+- Visualizar no painel inicial:
+  - Agenda do dia e próximos atendimentos
   - Atendimentos concluídos
   - Cancelamentos
   - No-shows
-  - Serviços mais realizados
   - Soma dos valores dos serviços concluídos
-  - Ticket médio
+
+Essa soma não representa dinheiro recebido. Serviços mais realizados e ticket
+médio permanecem no escopo mais amplo, fora do painel inicial confirmado.
 
 ## Fora do primeiro MVP
 
-- Pagamento online e Pix
-- Envio real de SMS ou WhatsApp
+- Pagamento online e Pix, incluindo antecipação com desconto (reavaliar após o primeiro piloto)
+- Envio automático de SMS ou WhatsApp; o primeiro piloto apenas abre a conversa para o cliente enviar a mensagem
 - Múltiplas unidades
 - Funcionário obrigatório por agendamento
 - Permissões personalizadas
@@ -75,16 +107,16 @@ A solução permite que donos de lava-jatos gerenciem seus negócios de forma f�
 - Não existe intervalo automático entre atendimentos no primeiro MVP. Se necessário, esse tempo deve fazer parte da duração configurada para o serviço.
 - Agendamentos no passado ou em conflito com outro atendimento no mesmo box não são permitidos.
 - Encaixes cadastrados pela equipe obedecem às mesmas regras de disponibilidade dos agendamentos feitos pelos clientes.
-- Cancelamentos e reagendamentos feitos pelo cliente respeitam a antecedência mínima configurada pela lavação.
+- A equipe pode registrar encaixe para início imediato, respeitando capacidade, expediente e bloqueios; a antecedência mínima para reservar aplica-se ao autoagendamento.
+- Pedidos de cancelamento e reagendamento feitos pelo cliente via WhatsApp seguem a antecedência mínima configurada pela lavação. A equipe aplica essa política e efetiva a alteração; o sistema não lê as mensagens.
 - Um reagendamento passa por uma nova verificação de disponibilidade.
 - Proprietários e funcionários podem cancelar atendimentos fora do prazo definido para clientes e informar um motivo opcional.
-- A lavação decide se novos agendamentos são confirmados automaticamente ou se precisam de confirmação manual.
+- Novos agendamentos são confirmados automaticamente no primeiro piloto, sem aprovação do proprietário.
 
-O fluxo principal de estados de um agendamento é:
+O fluxo de estados do primeiro piloto é:
 
 ```text
-PENDING_CONFIRMATION -> CONFIRMED -> IN_PROGRESS -> COMPLETED
-PENDING_CONFIRMATION -> CANCELED
+CONFIRMED -> IN_PROGRESS -> COMPLETED
 CONFIRMED -> CANCELED
 CONFIRMED -> NO_SHOW
 ```
@@ -96,10 +128,9 @@ O proprietário configura:
 - quantidade de boxes ativos;
 - dias e horários de funcionamento;
 - intervalo entre possíveis horários de início;
-- antecedência mínima para agendar;
-- quantidade máxima de dias disponíveis para agendamento futuro;
-- prazo mínimo para cancelamento ou reagendamento;
-- confirmação automática ou manual;
+- antecedência mínima para agendar (padrão: uma hora);
+- quantidade máxima de dias disponíveis para agendamento futuro (padrão: 30 dias);
+- prazo mínimo para solicitar cancelamento ou reagendamento (padrão: duas horas);
 - bloqueios de boxes ou de toda a operação;
 - feriados, fechamentos e horários especiais.
 
@@ -109,40 +140,50 @@ Alterações nessas configurações não modificam nem cancelam silenciosamente 
 
 Nitivo é um SaaS multiempresa. Várias lavações utilizam a mesma plataforma, mas cada uma funciona como um tenant isolado. Clientes, funcionários, serviços, boxes, configurações e agendamentos de uma lavação não podem ser acessados por outra.
 
-Uma pessoa possui uma única conta na plataforma e pode se relacionar com mais de uma lavação. Seu acesso em cada tenant é determinado por um dos seguintes papéis:
+Uma pessoa com conta possui uma única identidade na plataforma e pode se
+relacionar com mais de uma lavação. Clientes podem reservar sem criar uma conta
+no primeiro piloto; seu cadastro pertence à lavação e é distinto da conta de
+acesso à plataforma. Para pessoas com conta, o modelo de papéis prevê:
 
 - `OWNER`: administra a lavação, suas configurações e seus usuários;
 - `EMPLOYEE`: acompanha a agenda e executa as operações permitidas à equipe;
-- `CUSTOMER`: administra seus veículos e agendamentos.
+- `CUSTOMER`: papel previsto para acesso de clientes com conta, a reavaliar após o primeiro piloto.
 
 Os papéis possuem permissões fixas no primeiro MVP. Permissões personalizadas ficam fora do escopo inicial.
 
-O isolamento entre tenants é uma garantia obrigatória da plataforma e não pode ser desativado pelo proprietário. Toda operação sobre dados de uma lavação deve validar tanto a identidade do usuário quanto seu vínculo e sua permissão naquele tenant.
+O isolamento entre tenants é uma garantia obrigatória da plataforma e não pode
+ser desativado pelo proprietário. Operações da equipe devem validar identidade,
+vínculo e permissão naquele tenant. Clientes sem conta criam reservas na lavação
+selecionada, mas não obtêm acesso a cadastros ou reservas existentes. Alterações
+solicitadas pelo WhatsApp são executadas pela equipe autenticada e autorizada.
+Informações públicas de serviços e disponibilidade não devem expor dados pessoais
+de clientes nem informações internas da lavação.
 
 O primeiro MVP permite apenas uma unidade por lavação, mas a modelagem não deve misturar dados de empresas diferentes nem depender apenas de filtros enviados pelo cliente da API.
 
 ## Fases do produto
 
-### Ambiente educacional
+### Construção e validação
 
-- Execução local e aprendizado progressivo dos fundamentos.
+- Construção em incrementos completos, com interface, API, persistência e testes.
 - Uso exclusivo de dados fictícios.
 - PostgreSQL executado em container.
-- Integrações externas, como SMS, substituídas por implementações falsas e testáveis.
-- Prioridade para modelagem, APIs, regras de negócio e testes automatizados.
+- Descoberta digital com potenciais compradores em paralelo.
+- Prioridade para o fluxo de autoagendamento e operação do primeiro piloto.
 
 ### Demonstração controlada
 
-- Aplicação publicada na internet com dados fictícios.
+- Fluxo completo demonstrável com dados fictícios, localmente ou em ambiente remoto.
 - Cadastro público real desabilitado ou controlado.
 - Banco e configurações separados do ambiente local.
 - Introdução de CI/CD, logs, monitoramento e backups.
-- Uso para demonstração técnica e portfólio, não para a operação de uma lavação real.
+- Uso para validar o fluxo com interessados antes da entrada em operação real.
 
 ### Piloto
 
 - Uso limitado por uma lavação real, com acompanhamento próximo.
-- Autenticação, recuperação de conta e verificação de telefone reais.
+- Proposta de teste gratuito por 14 dias e continuidade por R$ 49/mês, hipótese de preço aceita para validação, com cobrança manual pelo proprietário do Nitivo.
+- Autenticação e recuperação de acesso reais para a equipe. No recorte atual, clientes reservam sem conta e o telefone informado não é verificado automaticamente.
 - Backups e restauração testados.
 - Monitoramento, alertas e procedimento de resposta a incidentes.
 - Políticas de privacidade e retenção, canal para titulares e contratos necessários.
@@ -151,14 +192,18 @@ O primeiro MVP permite apenas uma unidade por lavação, mas a modelagem não de
 ### Produção SaaS
 
 - Expansão progressiva para várias lavações.
-- Cobrança de assinaturas e suporte operacional.
+- Evolução da cobrança de assinaturas e do suporte a partir do piloto.
 - Evolução de disponibilidade, segurança, observabilidade e processos com base no aprendizado do piloto.
 
-O mesmo produto evoluirá entre essas fases. Não serão criadas arquiteturas complexas antecipadamente apenas para simular necessidades de produção.
+O mesmo produto evoluirá entre essas fases. A referência proposta é preparar
+o piloto em quatro semanas; seus 14 dias de uso começam após a entrada da
+lavação e os critérios de prontidão. O teto operacional inicial é R$ 100/mês
+além do Codex; a implantação depende da conferência dos custos em reais.
 
 ## Privacidade e LGPD
 
-O projeto adota privacidade por padrão e coleta mínima de dados. Durante a fase educacional e a demonstração serão utilizados somente dados fictícios.
+O projeto adota privacidade por padrão e coleta mínima de dados. Durante
+desenvolvimento, testes e demonstração serão utilizados somente dados fictícios.
 
 Compromissos iniciais:
 
@@ -183,6 +228,9 @@ A conformidade com a LGPD não será considerada garantida apenas pela implement
 - [Contexto e glossário do domínio](CONTEXT.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Marco atual](docs/CURRENT_MILESTONE.md)
+- [Planejamento do SaaS e decisões do piloto](docs/SAAS_PLAN.md)
+- [Especificação do primeiro piloto](docs/specs/primeiro-piloto-saas.md)
+- [Issue do primeiro piloto no GitHub](https://github.com/kauepacheco/nitivo/issues/1)
 - [Fluxo de trabalho em mais de um computador](docs/WORKFLOW.md)
 - [Decisões arquiteturais](docs/adr/README.md)
 - [Privacidade e proteção de dados](docs/privacy/README.md)

@@ -4,6 +4,21 @@
 
 Aceita em 2 de setembro de 2026.
 
+## Evolução do objetivo
+
+Em 9 de setembro de 2026, o proprietário retirou o aprendizado de programação
+como objetivo do projeto e priorizou o piloto comercial. As justificativas
+educacionais abaixo preservam o contexto histórico da decisão. O
+[plano do SaaS](../SAAS_PLAN.md) reavalia a entrega com esse novo objetivo;
+a mudança de missão não substitui automaticamente as tecnologias aceitas aqui.
+
+Na confirmação final do plano (Q19), o proprietário aceitou manter a stack do
+backend e adotar React/Vite para o frontend, servido pelo Nest na mesma origem.
+Essa escolha substitui a previsão de Next.js, que ainda não havia sido instalado,
+para manter uma implantação única sem servidor adicional de renderização.
+O custo aceito é adiar a renderização no servidor para aquisição orgânica;
+reavaliar se esse canal passar a exigir outra estratégia.
+
 ## Contexto
 
 O Nitivo precisa de uma base técnica para construir, inicialmente em ambiente local, um SaaS multiempresa de agendamentos para lavações. O domínio é relacional, possui regras configuráveis e exigirá consistência diante de tentativas simultâneas de reservar o mesmo recurso.
@@ -74,7 +89,10 @@ Adotar inicialmente:
 - Docker Compose inicialmente apenas para o PostgreSQL;
 - GitHub Actions depois que as verificações funcionarem localmente.
 
-Next.js e Playwright permanecem planejados para quando o frontend começar. AWS, filas, cache e outras tecnologias serão avaliados somente diante de necessidades concretas.
+Next.js foi a previsão inicial para o frontend, substituída por React/Vite na
+revisão registrada acima. Playwright permanece planejado para testes em navegador.
+AWS, filas, cache e outras tecnologias serão avaliados somente diante de
+necessidades concretas.
 
 As versões principais devem ser registradas pelo projeto. Atualizações menores e de segurança continuam necessárias e não exigem um novo ADR. Uma troca de tecnologia ou atualização principal com consequências arquiteturais deve substituir ou complementar esta decisão.
 

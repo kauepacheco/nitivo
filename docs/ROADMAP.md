@@ -1,62 +1,58 @@
 # Roadmap do Nitivo
 
-O roadmap organiza a evolução do mesmo produto. A passagem de fase depende dos critérios de saída, não apenas da quantidade de funcionalidades implementadas.
+O produto evolui para uso comercial com critérios de saída verificáveis.
+O escopo, a sequência semanal e o orçamento estão no [plano do piloto](SAAS_PLAN.md).
+O plano foi aprovado na resposta Q19. O proprietário pediu para não implementar
+agora; as etapas abaixo aguardam nova solicitação de execução.
 
-## 1. Ambiente educacional
+## 1. Construção e descoberta comercial
 
-Objetivo: aprender os fundamentos construindo localmente o núcleo do MVP com dados fictícios.
+Objetivo: preparar um fluxo completo de autoagendamento e gestão, enquanto o
+proprietário conversa com potenciais compradores e seleciona uma lavação.
 
-Resultados esperados:
+Resultados: acesso da equipe, configuração, persistência, isolamento multiempresa,
+agenda consistente, interface do cliente sem conta, contato por WhatsApp e painel.
+Desenvolvimento e testes usam dados fictícios.
 
-- ambiente de desenvolvimento reproduzível;
-- modelo inicial do domínio e isolamento multiempresa;
-- regras de disponibilidade e agendamento cobertas por testes;
-- autenticação e autorização exercitadas sem dados pessoais reais;
-- API documentada e verificável;
-- decisões técnicas relevantes registradas em ADRs.
+Critério de saída: os fluxos essenciais funcionam pela interface, com testes de
+isolamento e concorrência, e podem ser demonstrados a interessados.
 
-Critério de saída: o fluxo principal funciona localmente, possui testes automatizados e pode ser explicado pelo autor do projeto.
+## 2. Preparação do piloto
 
-## 2. Demonstração controlada
+Objetivo: deixar a aplicação e a operação prontas para a primeira lavação.
 
-Objetivo: disponibilizar uma versão pública de portfólio sem operação comercial nem dados pessoais reais.
+Resultados: implantação reproduzível, custo conferido frente ao teto de R$ 100/mês,
+autenticação e recuperação de acesso da equipe, monitoramento, restauração testada,
+procedimentos operacionais e artefatos de privacidade.
 
-Resultados esperados:
+Critério de saída: uma lavação aceita participar, suas regras estão configuradas,
+a equipe conhece a agenda e o tratamento de alterações pelo WhatsApp, e os
+[critérios para dados reais](privacy/README.md) estão atendidos.
 
-- ambientes local e remoto separados;
-- implantação automatizada e configuração segura;
-- CI, logs, monitoramento e backups iniciais;
-- dados fictícios de demonstração;
-- documentação suficiente para avaliação técnica do projeto.
+## 3. Piloto acompanhado
 
-Critério de saída: a demonstração pode ser acessada e restaurada com segurança, sem cadastro público real.
+Objetivo: verificar uso diário e disposição de pagar.
 
-## 3. Piloto
+Proposta: uma lavação, entrada assistida e 14 dias gratuitos. Apresentar previamente
+a hipótese aceita de R$ 49/mês para continuidade, com cobrança manual.
 
-Objetivo: validar o produto com uma lavação real e um grupo limitado de pessoas.
+Resultados: registro do uso de autoagendamento e da agenda, problemas operacionais,
+pedidos de alteração e manifestação comercial do proprietário da lavação.
 
-Resultados esperados:
+Critério de saída: a lavação usa o fluxo na rotina e aceita continuar pagando,
+com condição operacional de manter o serviço. Registrar primeiro pagamento
+separadamente. Caso não haja adesão, revisar problema, experiência ou público
+antes de ampliar.
 
-- autenticação, recuperação de conta e contatos reais;
-- inventário de dados pessoais, finalidades e prazos de retenção;
-- canal para solicitações de titulares;
-- contratos e fornecedores avaliados;
-- backups e restauração testados;
-- monitoramento, alertas e resposta a incidentes;
-- revisão técnica, operacional e jurídica.
+## 4. Expansão comercial
 
-Critério de saída: o piloto demonstra valor e condições operacionais para uma expansão consciente.
+Objetivo: atender outras lavações com operação sustentável.
 
-## 4. Produção SaaS
+Priorizar melhorias observadas no piloto, entrada de novas empresas, suporte e
+cobrança. Automatizar atividades repetitivas já conhecidas. Pagamento antecipado
+do atendimento, conta de cliente, integração automática com WhatsApp e relatórios
+adicionais serão reavaliados conforme evidência de necessidade.
 
-Objetivo: atender progressivamente várias lavações com operação sustentável.
-
-Possíveis evoluções:
-
-- cobrança de assinaturas;
-- suporte operacional;
-- metas de disponibilidade e desempenho;
-- observabilidade e segurança ampliadas;
-- funcionalidades priorizadas a partir do uso real.
-
-Essa fase não autoriza antecipar complexidade durante o ambiente educacional.
+Critério de expansão: capacidade, recuperação, suporte e custos continuam
+compatíveis com a quantidade de empresas atendidas. Crescimento não autoriza
+antecipar infraestrutura sem necessidade demonstrada.
