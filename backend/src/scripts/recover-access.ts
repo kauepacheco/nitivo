@@ -6,7 +6,6 @@ import {
 } from '@prisma/client';
 import { parseArgs } from 'node:util';
 import { prepareAccessRecovery } from '../identity-access/access-recovery';
-import { hashSecret } from '../identity-access/hash-secret';
 import { persistWithPrivateLink } from './private-link-file';
 
 const { values } = parseArgs({
@@ -56,6 +55,25 @@ async function main() {
             }
           : null;
       },
+      replaceRecoveryTokenAtomically: (token) =>
+        prisma.$transaction(async (transaction) => {
+          await transaction.accessToken.updateMany({
+            where: {
+              userId: token.userId,
+              purpose: AccessTokenPurpose.RESET_PASSWORD,
+              consumedAt: null,
+            },
+            data: { consumedAt: token.createdAt },
+          });
+          await transaction.accessToken.create({
+            data: {
+              userId: token.userId,
+              purpose: AccessTokenPurpose.RESET_PASSWORD,
+              tokenHash: token.tokenHash,
+              expiresAt: token.expiresAt,
+            },
+          });
+        }),
     },
     email,
   );
@@ -69,25 +87,7 @@ async function main() {
   await persistWithPrivateLink({
     outputFile,
     url: recoveryUrl,
-    persist: () =>
-      prisma.$transaction(async (transaction) => {
-        await transaction.accessToken.updateMany({
-          where: {
-            userId: recovery.userId,
-            purpose: AccessTokenPurpose.RESET_PASSWORD,
-            consumedAt: null,
-          },
-          data: { consumedAt: recovery.createdAt },
-        });
-        await transaction.accessToken.create({
-          data: {
-            userId: recovery.userId,
-            purpose: AccessTokenPurpose.RESET_PASSWORD,
-            tokenHash: hashSecret(recovery.rawToken),
-            expiresAt: recovery.expiresAt,
-          },
-        });
-      }),
+    persist: recovery.commit,
   });
   process.stdout.write('Link privado gravado no arquivo indicado.\n');
 }
