@@ -1,27 +1,30 @@
 import {
   BadRequestException,
   ConflictException,
-  HttpException,
-  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { MembershipRole, MembershipStatus, Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
-import {
-  AUTHENTICATION_MAX_FAILURES,
-  AUTHENTICATION_WINDOW_MINUTES,
-} from '../identity-access/auth.constants';
+import { AuthenticationThrottleService } from '../identity-access/authentication-throttle.service';
 import { hashPassword } from '../identity-access/password-hash';
 import { hashSecret } from '../identity-access/hash-secret';
+import {
+  hasMembershipThatBlocksInvitation,
+  invitationCanBeUsed,
+  invitationMatchesIdentity,
+} from './employee-invitation.policy';
 
 const INVITATION_VALIDITY_HOURS = 24;
 const INVALID_INVITATION = 'Convite inválido, expirado ou já utilizado';
 
 @Injectable()
 export class TeamAccessService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly throttle: AuthenticationThrottleService,
+  ) {}
 
   async invite(carWashId: string, invitedByUserId: string, email: string) {
     const normalizedEmail = email.trim().toLowerCase();
@@ -29,13 +32,7 @@ export class TeamAccessService {
       where: { email: normalizedEmail },
       include: { memberships: { where: { carWashId } } },
     });
-    if (
-      invitedUser?.memberships.some(
-        (membership) =>
-          membership.status === MembershipStatus.ACTIVE ||
-          membership.role === MembershipRole.OWNER,
-      )
-    ) {
+    if (hasMembershipThatBlocksInvitation(invitedUser?.memberships ?? [])) {
       throw new ConflictException(
         'A pessoa já possui vínculo com esta lavação',
       );
@@ -137,10 +134,7 @@ export class TeamAccessService {
     remoteAddress: string,
   ) {
     const invitation = await this.validInvitation(rawToken, remoteAddress);
-    if (
-      invitation.email !== email ||
-      (invitation.invitedUserId && invitation.invitedUserId !== userId)
-    ) {
+    if (!invitationMatchesIdentity(invitation, { userId, email })) {
       throw new NotFoundException();
     }
     const now = new Date();
@@ -208,73 +202,21 @@ export class TeamAccessService {
 
   private async validInvitation(rawToken: string, remoteAddress: string) {
     const attemptKey = hashSecret(`employee-invitation|${remoteAddress}`);
-    await this.assertInvitationAttemptAllowed(attemptKey);
+    await this.throttle.assertAllowed(attemptKey);
     if (!rawToken) {
-      await this.recordInvitationFailure(attemptKey);
+      await this.throttle.recordFailure(attemptKey);
       throw new BadRequestException(INVALID_INVITATION);
     }
     const invitation = await this.prisma.employeeInvitation.findUnique({
       where: { tokenHash: hashSecret(rawToken) },
       include: { carWash: { select: { name: true } } },
     });
-    if (
-      !invitation ||
-      invitation.consumedAt ||
-      invitation.expiresAt <= new Date()
-    ) {
-      await this.recordInvitationFailure(attemptKey);
+    if (!invitation || !invitationCanBeUsed(invitation, new Date())) {
+      await this.throttle.recordFailure(attemptKey);
       throw new BadRequestException(INVALID_INVITATION);
     }
-    await this.prisma.authenticationThrottle.deleteMany({
-      where: { key: attemptKey },
-    });
+    await this.throttle.clear(attemptKey);
     return invitation;
-  }
-
-  private async assertInvitationAttemptAllowed(key: string) {
-    const attempt = await this.prisma.authenticationThrottle.findUnique({
-      where: { key },
-    });
-    if (attempt?.blockedUntil && attempt.blockedUntil > new Date()) {
-      throw new HttpException(
-        'Muitas tentativas. Tente novamente mais tarde',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-  }
-
-  private async recordInvitationFailure(key: string) {
-    const now = new Date();
-    const windowStart = new Date(
-      now.getTime() - AUTHENTICATION_WINDOW_MINUTES * 60_000,
-    );
-    await this.prisma.$transaction(async (transaction) => {
-      const current = await transaction.authenticationThrottle.findUnique({
-        where: { key },
-      });
-      const startsNewWindow = !current || current.windowStartedAt < windowStart;
-      const failedAttempts = startsNewWindow ? 1 : current.failedAttempts + 1;
-      await transaction.authenticationThrottle.upsert({
-        where: { key },
-        create: {
-          key,
-          failedAttempts,
-          windowStartedAt: now,
-          blockedUntil:
-            failedAttempts >= AUTHENTICATION_MAX_FAILURES
-              ? new Date(now.getTime() + AUTHENTICATION_WINDOW_MINUTES * 60_000)
-              : null,
-        },
-        update: {
-          failedAttempts,
-          windowStartedAt: startsNewWindow ? now : current.windowStartedAt,
-          blockedUntil:
-            failedAttempts >= AUTHENTICATION_MAX_FAILURES
-              ? new Date(now.getTime() + AUTHENTICATION_WINDOW_MINUTES * 60_000)
-              : null,
-        },
-      });
-    });
   }
 
   private async consumeInvitation(

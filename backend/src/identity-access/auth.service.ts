@@ -1,7 +1,5 @@
 import {
   BadRequestException,
-  HttpException,
-  HttpStatus,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -13,19 +11,18 @@ import {
 import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
-import {
-  AUTHENTICATION_MAX_FAILURES,
-  AUTHENTICATION_WINDOW_MINUTES,
-  SESSION_ABSOLUTE_HOURS,
-  SESSION_IDLE_MINUTES,
-} from './auth.constants';
+import { SESSION_ABSOLUTE_HOURS, SESSION_IDLE_MINUTES } from './auth.constants';
+import { AuthenticationThrottleService } from './authentication-throttle.service';
 import { AuthenticatedSession } from './auth.types';
 import { hashSecret } from './hash-secret';
 import { hashPassword } from './password-hash';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly throttle: AuthenticationThrottleService,
+  ) {}
 
   async setPassword(
     token: string,
@@ -35,13 +32,13 @@ export class AuthService {
     const now = new Date();
     const tokenHash = hashSecret(token);
     const attemptKey = hashSecret(`set-password|${remoteAddress}`);
-    await this.assertAuthenticationAllowed(attemptKey);
+    await this.throttle.assertAllowed(attemptKey);
     const accessToken = await this.prisma.accessToken.findUnique({
       where: { tokenHash },
     });
 
     if (!accessToken) {
-      await this.recordAuthenticationFailure(attemptKey);
+      await this.throttle.recordFailure(attemptKey);
       throw new BadRequestException('Link inválido, expirado ou já utilizado');
     }
     if (
@@ -49,7 +46,7 @@ export class AuthService {
       accessToken.consumedAt ||
       accessToken.expiresAt <= now
     ) {
-      await this.recordAuthenticationFailure(attemptKey);
+      await this.throttle.recordFailure(attemptKey);
       throw new BadRequestException('Link inválido, expirado ou já utilizado');
     }
 
@@ -78,15 +75,13 @@ export class AuthService {
         data: { revokedAt: now },
       });
     });
-    await this.prisma.authenticationThrottle.deleteMany({
-      where: { key: attemptKey },
-    });
+    await this.throttle.clear(attemptKey);
   }
 
   async login(email: string, password: string, remoteAddress: string) {
     const normalizedEmail = email.trim().toLowerCase();
     const attemptKey = hashSecret(`${normalizedEmail}|${remoteAddress}`);
-    await this.assertAuthenticationAllowed(attemptKey);
+    await this.throttle.assertAllowed(attemptKey);
 
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -101,13 +96,11 @@ export class AuthService {
       user?.passwordHash && (await argon2.verify(user.passwordHash, password));
 
     if (!user || !passwordMatches || user.memberships.length === 0) {
-      await this.recordAuthenticationFailure(attemptKey);
+      await this.throttle.recordFailure(attemptKey);
       throw new UnauthorizedException('E-mail ou senha inválidos');
     }
 
-    await this.prisma.authenticationThrottle.deleteMany({
-      where: { key: attemptKey },
-    });
+    await this.throttle.clear(attemptKey);
     const now = new Date();
     const rawSessionToken = randomBytes(32).toString('base64url');
     const csrfToken = randomBytes(32).toString('base64url');
@@ -181,55 +174,6 @@ export class AuthService {
     await this.prisma.session.updateMany({
       where: { id: sessionId, revokedAt: null },
       data: { revokedAt: new Date() },
-    });
-  }
-
-  private async assertAuthenticationAllowed(key: string) {
-    const attempt = await this.prisma.authenticationThrottle.findUnique({
-      where: { key },
-    });
-    if (attempt?.blockedUntil && attempt.blockedUntil > new Date()) {
-      throw new HttpException(
-        'Muitas tentativas. Tente novamente mais tarde',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-  }
-
-  private async recordAuthenticationFailure(key: string) {
-    const now = new Date();
-    const windowStart = addMinutes(now, -AUTHENTICATION_WINDOW_MINUTES);
-    await this.prisma.$transaction(async (transaction) => {
-      const current = await transaction.authenticationThrottle.findUnique({
-        where: { key },
-      });
-      const failedAttempts =
-        !current || current.windowStartedAt < windowStart
-          ? 1
-          : current.failedAttempts + 1;
-      await transaction.authenticationThrottle.upsert({
-        where: { key },
-        create: {
-          key,
-          failedAttempts,
-          windowStartedAt: now,
-          blockedUntil:
-            failedAttempts >= AUTHENTICATION_MAX_FAILURES
-              ? addMinutes(now, AUTHENTICATION_WINDOW_MINUTES)
-              : null,
-        },
-        update: {
-          failedAttempts,
-          windowStartedAt:
-            !current || current.windowStartedAt < windowStart
-              ? now
-              : current.windowStartedAt,
-          blockedUntil:
-            failedAttempts >= AUTHENTICATION_MAX_FAILURES
-              ? addMinutes(now, AUTHENTICATION_WINDOW_MINUTES)
-              : null,
-        },
-      });
     });
   }
 }

@@ -60,7 +60,8 @@ existente e revogação isolada por lavação.
 - pessoa nova define a própria senha e pessoa com conta existente aceita após
   autenticar, sem redefinir senha ou perder vínculo com outra lavação;
 - testes HTTP com PostgreSQL real cobrem dois tenants, restrição do funcionário,
-  expiração e revogação; jornada móvel cobre convite, aceite, entrada e revogação.
+  expiração, consumo concorrente e revogação; jornadas móveis cobrem convite,
+  aceite, seleção do vínculo ativo, entrada e revogação.
 
 ## Objetivo atual
 

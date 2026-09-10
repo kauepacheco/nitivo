@@ -4,10 +4,23 @@ import { AuthService } from './auth.service';
 import { CsrfGuard } from './csrf.guard';
 import { OwnerMembershipGuard } from './owner-membership.guard';
 import { SessionGuard } from './session.guard';
+import { AuthenticationThrottleService } from './authentication-throttle.service';
 
 @Module({
   controllers: [AuthController],
-  providers: [AuthService, SessionGuard, CsrfGuard, OwnerMembershipGuard],
-  exports: [AuthService, SessionGuard, CsrfGuard, OwnerMembershipGuard],
+  providers: [
+    AuthService,
+    AuthenticationThrottleService,
+    SessionGuard,
+    CsrfGuard,
+    OwnerMembershipGuard,
+  ],
+  exports: [
+    AuthService,
+    AuthenticationThrottleService,
+    SessionGuard,
+    CsrfGuard,
+    OwnerMembershipGuard,
+  ],
 })
 export class IdentityAccessModule {}

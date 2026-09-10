@@ -239,6 +239,42 @@ describe('Acesso da equipe (e2e)', () => {
       .expect(429);
   });
 
+  it('consome o convite atomicamente quando dois aceites concorrem', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.concorrencia@example.test',
+    });
+    const invitation = await owner.agent
+      .post('/api/car-washes/lavacao-sol/team/invitations')
+      .set('x-csrf-token', owner.csrfToken)
+      .send({ email: 'funcionaria.concorrencia@example.test' })
+      .expect(201);
+    const token = new URL(
+      invitation.body.invitationUrl as string,
+    ).searchParams.get('token');
+
+    const acceptances = await Promise.all([
+      request(app.getHttpServer())
+        .post(`/api/team/invitations/${token}/accept-new`)
+        .send({ password: 'Senha-ficticia-123!' }),
+      request(app.getHttpServer())
+        .post(`/api/team/invitations/${token}/accept-new`)
+        .send({ password: 'Senha-ficticia-123!' }),
+    ]);
+    expect(acceptances.map((response) => response.status).sort()).toEqual([
+      204, 400,
+    ]);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        email: 'funcionaria.concorrencia@example.test',
+        password: 'Senha-ficticia-123!',
+      })
+      .expect(200);
+    expect(login.body.user.memberships).toHaveLength(1);
+  });
+
   afterAll(async () => {
     await app?.close();
     await database?.stop();

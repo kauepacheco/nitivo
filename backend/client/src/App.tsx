@@ -33,6 +33,9 @@ type Team = {
 export function App() {
   const setupToken = new URLSearchParams(window.location.search).get('token');
   const [session, setSession] = useState<Session | null>(null);
+  const [selectedCarWashId, setSelectedCarWashId] = useState<string | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -64,17 +67,24 @@ export function App() {
   if (!session) {
     return <Login onLogin={setSession} />;
   }
-  const ownerMembership = session.user.memberships.find(
-    (membership) => membership.role === 'OWNER',
-  );
-  return ownerMembership ? (
+  const membership =
+    session.user.memberships.find(
+      (candidate) => candidate.carWashId === selectedCarWashId,
+    ) ?? session.user.memberships[0];
+  return membership.role === 'OWNER' ? (
     <OwnerWorkspace
       session={session}
-      membership={ownerMembership}
+      membership={membership}
+      onSelectCarWash={setSelectedCarWashId}
       onLogout={() => setSession(null)}
     />
   ) : (
-    <EmployeeHome session={session} onLogout={() => setSession(null)} />
+    <EmployeeHome
+      session={session}
+      membership={membership}
+      onSelectCarWash={setSelectedCarWashId}
+      onLogout={() => setSession(null)}
+    />
   );
 }
 
@@ -266,17 +276,21 @@ function AcceptInvitation({
 
 function EmployeeHome({
   session,
+  membership,
+  onSelectCarWash,
   onLogout,
 }: {
   session: Session;
+  membership: Membership;
+  onSelectCarWash: (carWashId: string) => void;
   onLogout: () => void;
 }) {
-  const membership = session.user.memberships[0];
   return (
     <main className="app-shell">
       <AppHeader
         membership={membership}
         session={session}
+        onSelectCarWash={onSelectCarWash}
         onLogout={onLogout}
       />
       <section className="intro">
@@ -294,10 +308,12 @@ function EmployeeHome({
 function OwnerWorkspace({
   session,
   membership,
+  onSelectCarWash,
   onLogout,
 }: {
   session: Session;
   membership: Membership;
+  onSelectCarWash: (carWashId: string) => void;
   onLogout: () => void;
 }) {
   const [services, setServices] = useState<ServiceOffering[]>([]);
@@ -343,6 +359,7 @@ function OwnerWorkspace({
       <AppHeader
         membership={membership}
         session={session}
+        onSelectCarWash={onSelectCarWash}
         onLogout={onLogout}
       />
       <section className="intro">
@@ -420,10 +437,12 @@ function OwnerWorkspace({
 function AppHeader({
   membership,
   session,
+  onSelectCarWash,
   onLogout,
 }: {
   membership: Membership;
   session: Session;
+  onSelectCarWash: (carWashId: string) => void;
   onLogout: () => void;
 }) {
   async function logout() {
@@ -437,7 +456,23 @@ function AppHeader({
     <header>
       <Brand />
       <div>
-        <strong>{membership.carWashName}</strong>
+        {session.user.memberships.length > 1 ? (
+          <label className="tenant-selector">
+            Lavação ativa
+            <select
+              value={membership.carWashId}
+              onChange={(event) => onSelectCarWash(event.target.value)}
+            >
+              {session.user.memberships.map((candidate) => (
+                <option key={candidate.carWashId} value={candidate.carWashId}>
+                  {candidate.carWashName}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <strong>{membership.carWashName}</strong>
+        )}
         <button
           type="button"
           className="secondary"

@@ -42,6 +42,10 @@ test.afterAll(async () => {
   await database?.stop();
 });
 
+test.beforeEach(async () => {
+  await database.reset();
+});
+
 async function waitForHealth(url: string, child: ChildProcess) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     if (child.exitCode !== null) {
@@ -173,15 +177,100 @@ test('proprietário convida e revoga uma funcionária pela interface', async ({
   ).not.toBeVisible();
 
   await page.getByRole('button', { name: 'Sair' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Acesse sua lavação' }),
+  ).toBeVisible();
   await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
   await page.getByLabel('Senha').fill('Senha-ficticia-123!');
   await page.getByRole('button', { name: 'Entrar' }).click();
   await page.getByRole('button', { name: 'Revogar acesso' }).click();
   await expect(page.getByText('Acesso revogado.')).toBeVisible();
   await page.getByRole('button', { name: 'Sair' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Acesse sua lavação' }),
+  ).toBeVisible();
 
   await page.getByLabel('E-mail').fill('funcionaria.horizonte@example.test');
   await page.getByLabel('Senha').fill('Senha-ficticia-456!');
   await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page.getByText('E-mail ou senha inválidos')).toBeVisible();
 });
+
+test('pessoa com dois vínculos escolhe em qual lavação deseja atuar', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const firstOwnerLink = provisionOwner({
+    baseUrl,
+    carWashName: 'Lavação Sol',
+    slug: 'lavacao-sol',
+    email: 'dona.comum@example.test',
+  });
+  const secondOwnerLink = provisionOwner({
+    baseUrl,
+    carWashName: 'Lavação Lua',
+    slug: 'lavacao-lua',
+    email: 'dona.lua@example.test',
+  });
+
+  for (const link of [firstOwnerLink, secondOwnerLink]) {
+    await page.goto(link);
+    await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+    await page.getByRole('button', { name: 'Definir senha' }).click();
+  }
+  await page.getByLabel('E-mail').fill('dona.lua@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByLabel('E-mail da pessoa').fill('dona.comum@example.test');
+  await page.getByRole('button', { name: 'Criar convite' }).click();
+  const invitationUrl = await page.getByLabel('Link privado').inputValue();
+  await page.getByRole('button', { name: 'Sair' }).click();
+
+  await page.goto(invitationUrl);
+  await page.getByLabel('E-mail').fill('dona.comum@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await page.getByRole('button', { name: 'Aceitar com esta conta' }).click();
+
+  await page.getByLabel('Lavação ativa').selectOption({ label: 'Lavação Lua' });
+  await expect(
+    page.getByRole('heading', { name: 'Acesso de funcionário' }),
+  ).toBeVisible();
+  await page.getByLabel('Lavação ativa').selectOption({ label: 'Lavação Sol' });
+  await expect(
+    page.getByRole('heading', { name: 'Serviços da sua lavação' }),
+  ).toBeVisible();
+});
+
+function provisionOwner(input: {
+  baseUrl: string;
+  carWashName: string;
+  slug: string;
+  email: string;
+}) {
+  const outputFile = join(tmpdir(), `nitivo-owner-${randomUUID()}.txt`);
+  execFileSync(
+    process.execPath,
+    [
+      '--require',
+      'ts-node/register',
+      'src/scripts/provision-owner.ts',
+      '--car-wash-name',
+      input.carWashName,
+      '--slug',
+      input.slug,
+      '--owner-email',
+      input.email,
+      '--output-file',
+      outputFile,
+    ],
+    {
+      cwd: process.cwd(),
+      env: { ...process.env, APP_URL: input.baseUrl },
+      encoding: 'utf8',
+    },
+  );
+  const link = readFileSync(outputFile, 'utf8').trim();
+  unlinkSync(outputFile);
+  return link;
+}
