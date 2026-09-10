@@ -4,6 +4,10 @@ node_modules/
 # Artefatos gerados
 dist/
 coverage/
+public/
+.local/
+test-results/
+playwright-report/
 *.tsbuildinfo
 
 # Configurações locais e segredos

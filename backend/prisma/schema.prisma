@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MembershipRole {
+  OWNER
+  EMPLOYEE
+}
+
+enum MembershipStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum AccessTokenPurpose {
+  SET_PASSWORD
+}
+
+model CarWash {
+  id          String            @id @default(cuid())
+  name        String
+  slug        String            @unique
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  memberships Membership[]
+  services    ServiceOffering[]
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String?
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  memberships  Membership[]
+  accessTokens AccessToken[]
+  sessions     Session[]
+}
+
+model Membership {
+  id        String           @id @default(cuid())
+  userId    String
+  carWashId String
+  role      MembershipRole
+  status    MembershipStatus @default(ACTIVE)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carWash   CarWash          @relation(fields: [carWashId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, carWashId])
+  @@index([carWashId, status])
+}
+
+model AccessToken {
+  id         String             @id @default(cuid())
+  userId     String
+  purpose    AccessTokenPurpose
+  tokenHash  String             @unique
+  expiresAt  DateTime           @db.Timestamptz(3)
+  consumedAt DateTime?          @db.Timestamptz(3)
+  createdAt  DateTime           @default(now()) @db.Timestamptz(3)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+}
+
+model Session {
+  id                String    @id @default(cuid())
+  userId            String
+  tokenHash         String    @unique
+  csrfToken         String
+  expiresAt         DateTime  @db.Timestamptz(3)
+  absoluteExpiresAt DateTime  @db.Timestamptz(3)
+  lastSeenAt        DateTime  @default(now()) @db.Timestamptz(3)
+  revokedAt         DateTime? @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+}
+
+model AuthenticationThrottle {
+  key             String    @id
+  failedAttempts  Int       @default(0)
+  windowStartedAt DateTime  @default(now()) @db.Timestamptz(3)
+  blockedUntil    DateTime? @db.Timestamptz(3)
+}
+
+model ServiceOffering {
+  id                String   @id @default(cuid())
+  carWashId         String
+  name              String
+  priceInCents      Int
+  durationInMinutes Int
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  carWash           CarWash  @relation(fields: [carWashId], references: [id], onDelete: Restrict)
+
+  @@unique([id, carWashId])
+  @@index([carWashId, createdAt])
+}

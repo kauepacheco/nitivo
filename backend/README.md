@@ -1,46 +1,77 @@
-# Backend do Nitivo
+# Aplicação do Nitivo
 
-API do Nitivo, construída como um monólito modular com Node.js, TypeScript e NestJS.
-O produto, o domínio e o escopo do MVP estão descritos no
-[README principal](../README.md), e as escolhas da stack estão registradas no
-[ADR 0001](../docs/adr/0001-stack-inicial.md).
+Monólito modular do Nitivo: API NestJS, interface React/Vite e PostgreSQL. O
+primeiro incremento permite ao operador provisionar uma lavação, ao proprietário
+definir sua senha e administrar um catálogo persistido e isolado por tenant.
 
 ## Requisitos
 
-- Node.js 24 LTS;
-- npm 11.
-
-O PostgreSQL será executado com Docker Compose quando a persistência for
-introduzida. O esqueleto atual ainda não depende de banco de dados.
+- Node.js 24 LTS e npm 11;
+- Docker com Compose para o banco local;
+- Chromium do Playwright para o teste de navegador.
 
 ## Instalação
 
 ```bash
 npm ci
+npx playwright install --with-deps chromium
 ```
 
-`npm ci` instala exatamente as versões resolvidas em `package-lock.json` e é o
-comando indicado para reproduzir o ambiente a partir de um clone limpo.
+O `postinstall` gera o Prisma Client. O projeto autoriza scripts de instalação
+somente para dependências que precisam compilar binários ou preparar ferramentas;
+o script de telemetria de `@scarf/scarf` permanece negado.
 
-## Execução local
+## Banco e migrations
+
+Inicie o PostgreSQL 18 local e aplique as migrations:
 
 ```bash
-npm run start:dev
+npm run db:local
 ```
 
-A API fica disponível em `http://localhost:3000`. O endpoint inicial de saúde é:
+A conexão local padrão está em `.env.example`. Em outro ambiente, defina
+`DATABASE_URL` antes de executar `npm run db:migrate` ou iniciar a aplicação.
+Os instantes persistidos usam `timestamptz` e o banco local opera em UTC.
 
-```http
-GET /health
+Para encerrar o container sem apagar o volume:
+
+```bash
+npm run db:stop
 ```
 
-Resposta esperada:
+## Provisionamento assistido
 
-```json
-{
-  "status": "ok"
-}
+Não existe cadastro público de lavações. Com `DATABASE_URL` e `APP_URL`
+configuradas, o operador cria a lavação e seu primeiro proprietário pela CLI:
+
+```bash
+npm run provision:owner -- \
+  --car-wash-name "Lavação Horizonte" \
+  --slug "lavacao-horizonte" \
+  --owner-email "dona.horizonte@example.test"
 ```
+
+O comando imprime uma única vez o link privado de definição de senha, válido
+por 24 horas. Entregue-o por um canal previamente conferido; não o copie para
+logs, issues ou commits. Os exemplos acima são fictícios.
+
+## Execução
+
+Para gerar a interface e a API e servi-las na mesma origem:
+
+```bash
+npm run build
+npm run start:prod
+```
+
+A aplicação fica em `http://127.0.0.1:3000`, a saúde em `GET /health` e a
+documentação OpenAPI em `/docs`. Durante alterações, gere a interface com
+`npm run build:client` e execute a API com `npm run start:dev`.
+
+Em produção, a sessão usa cookie `Secure`, `HttpOnly` e `SameSite=Strict`.
+Operações autenticadas que alteram estado também exigem o token CSRF devolvido
+pelo login. Sessões têm expiração por 30 minutos de inatividade e limite absoluto
+de 12 horas; logout e definição de uma nova senha revogam sessões persistidas.
 
 ## Verificações
 
@@ -48,19 +79,20 @@ Resposta esperada:
 npm run check
 ```
 
-Esse comando executa, em sequência:
+O comando executa lint, typecheck da API e da interface, builds, testes unitários,
+integração HTTP com PostgreSQL 18 real e a jornada Playwright. Os testes criam
+um PostgreSQL temporário embutido e usam somente dados fictícios; Docker não é
+necessário para a suíte automatizada.
 
-1. análise estática com Oxlint;
-2. compilação do TypeScript;
-3. testes unitários com Jest;
-4. testes HTTP com Jest e Supertest.
+Também é possível executar cada etapa separadamente:
 
-Também é possível executar cada etapa separadamente pelos scripts declarados
-em `package.json`.
+```bash
+npm run lint
+npm run typecheck
+npm test -- --runInBand
+npm run test:e2e -- --runInBand
+npm run test:browser
+```
 
-## Nota sobre módulos
-
-O backend permanece em CommonJS e usa Jest, conforme a stack escolhida. Os
-pacotes centrais do NestJS 12 são publicados como ESM, por isso os scripts do
-Jest ativam `--experimental-vm-modules` no Node.js. O aviso experimental exibido
-durante os testes é esperado neste ambiente.
+As decisões da stack estão no [ADR 0001](../docs/adr/0001-stack-inicial.md) e o
+escopo do incremento está na [issue #2](https://github.com/kauepacheco/nitivo/issues/2).

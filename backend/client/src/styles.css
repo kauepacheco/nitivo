@@ -1,0 +1,252 @@
+:root {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: #17231e;
+  background: #f4f7f5;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+button,
+input {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+
+.center-card {
+  width: min(440px, calc(100% - 32px));
+  margin: 8vh auto;
+  padding: 32px;
+  background: white;
+  border: 1px solid #dce5e0;
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgb(21 51 38 / 9%);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #154f37;
+  font-size: 20px;
+  font-weight: 800;
+}
+.brand span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  color: white;
+  background: #18794e;
+  border-radius: 10px;
+}
+h1 {
+  margin: 20px 0 8px;
+  font-size: clamp(28px, 5vw, 42px);
+  line-height: 1.05;
+}
+h2 {
+  margin: 0 0 20px;
+  font-size: 20px;
+}
+p {
+  color: #5d6b65;
+  line-height: 1.5;
+}
+form {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+label {
+  display: grid;
+  gap: 7px;
+  color: #35443e;
+  font-size: 14px;
+  font-weight: 650;
+}
+input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid #b9c8c0;
+  border-radius: 10px;
+  color: #17231e;
+  background: #fff;
+}
+input:focus {
+  outline: 3px solid rgb(24 121 78 / 18%);
+  border-color: #18794e;
+}
+button {
+  min-height: 46px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: #18794e;
+  font-weight: 750;
+}
+button:hover {
+  background: #11663f;
+}
+.secondary {
+  min-height: 38px;
+  margin-left: 16px;
+  color: #154f37;
+  background: #e9f3ee;
+}
+.secondary:hover {
+  background: #dcece4;
+}
+.status,
+.error {
+  margin-top: 18px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #e9f6ef;
+  color: #185c3d;
+}
+.error {
+  background: #fff0ef;
+  color: #9e2f28;
+}
+
+.app-shell {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto 64px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 84px;
+  border-bottom: 1px solid #dce5e0;
+}
+header > div:last-child {
+  display: flex;
+  align-items: center;
+}
+.intro {
+  padding: 56px 0 28px;
+}
+.intro h1 {
+  margin-top: 8px;
+}
+.eyebrow {
+  color: #18794e;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 24px;
+  align-items: start;
+}
+.panel {
+  padding: 28px;
+  background: white;
+  border: 1px solid #dce5e0;
+  border-radius: 18px;
+}
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.checkbox input {
+  width: 18px;
+  min-height: 18px;
+  accent-color: #18794e;
+}
+.empty {
+  padding: 28px 0;
+  text-align: center;
+}
+.service-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.service-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid #e4ebe7;
+}
+.service-list li:last-child {
+  border-bottom: 0;
+}
+.service-list li div {
+  display: grid;
+  gap: 5px;
+}
+.service-list span {
+  color: #6a7772;
+  font-size: 14px;
+}
+.service-list b {
+  white-space: nowrap;
+  color: #154f37;
+}
+
+@media (max-width: 720px) {
+  .center-card {
+    padding: 24px;
+  }
+  .app-shell {
+    width: min(100% - 24px, 560px);
+  }
+  header {
+    align-items: flex-start;
+    padding: 20px 0;
+    gap: 16px;
+  }
+  header > div:last-child {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .secondary {
+    margin-left: 0;
+  }
+  .intro {
+    padding-top: 36px;
+  }
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  .panel {
+    padding: 22px;
+  }
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}

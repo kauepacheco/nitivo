@@ -1,10 +1,28 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'node:path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { DatabaseModule } from './database/database.module';
+import { IdentityAccessModule } from './identity-access/identity-access.module';
+import { ServiceCatalogModule } from './service-catalog/service-catalog.module';
 
 @Module({
-  imports: [],
+  imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'public'),
+      exclude: ['/api/{*path}', '/health', '/docs/{*path}'],
+    }),
+    DatabaseModule,
+    IdentityAccessModule,
+    ServiceCatalogModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(cookieParser()).forRoutes('*');
+  }
+}

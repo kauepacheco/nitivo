@@ -1,19 +1,31 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
+import { configureApp } from './../src/configure-app';
+import { startTestDatabase, TestDatabase } from './support/test-database';
 
-describe('AppController (e2e)', () => {
+describe('Nitivo API (e2e)', () => {
   let app: INestApplication<App>;
+  let database: TestDatabase;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    database = await startTestDatabase();
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    configureApp(app);
     await app.init();
+  }, 120_000);
+
+  beforeEach(async () => {
+    await database.reset();
   });
 
   it('GET /health', () => {
@@ -23,7 +35,322 @@ describe('AppController (e2e)', () => {
       .expect({ status: 'ok' });
   });
 
-  afterEach(async () => {
-    await app.close();
+  it('permite que o proprietário defina a senha e entre por um link de uso único', async () => {
+    const setupToken = 'token-ficticio-do-proprietario';
+    await seedOwner(database, {
+      carWashId: 'lavacao-sol',
+      email: 'proprietario.sol@example.test',
+      setupToken,
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({ token: setupToken, password: 'Senha-ficticia-123!' })
+      .expect(204);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({ token: setupToken, password: 'Outra-senha-ficticia-123!' })
+      .expect(400);
+
+    const agent = request.agent(app.getHttpServer());
+    const login = await agent
+      .post('/api/auth/login')
+      .send({
+        email: 'proprietario.sol@example.test',
+        password: 'Senha-ficticia-123!',
+      })
+      .expect(200);
+
+    expect(login.body).toEqual({
+      csrfToken: expect.any(String),
+      user: {
+        email: 'proprietario.sol@example.test',
+        memberships: [
+          {
+            carWashId: 'lavacao-sol',
+            carWashName: 'Lavação Sol',
+            role: 'OWNER',
+          },
+        ],
+      },
+    });
+  });
+
+  it('provisiona a lavação e entrega ao operador um link temporário sem criar cadastro público', async () => {
+    const output = execFileSync(
+      process.execPath,
+      [
+        '--require',
+        'ts-node/register',
+        'src/scripts/provision-owner.ts',
+        '--car-wash-name',
+        'Lavação Horizonte',
+        '--slug',
+        'lavacao-horizonte',
+        '--owner-email',
+        'dona.horizonte@example.test',
+      ],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, APP_URL: 'http://127.0.0.1:3000' },
+        encoding: 'utf8',
+      },
+    );
+    const link = output.trim();
+    expect(link).toMatch(
+      /^http:\/\/127\.0\.0\.1:3000\/set-password\?token=[A-Za-z0-9_-]+$/,
+    );
+
+    const token = new URL(link).searchParams.get('token');
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({ token, password: 'Senha-ficticia-123!' })
+      .expect(204);
+  });
+
+  it('persiste serviços válidos e isola o catálogo entre lavações', async () => {
+    const ownerA = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+    const ownerB = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-lua',
+      email: 'dono.lua@example.test',
+    });
+
+    const created = await ownerA.agent
+      .post('/api/car-washes/lavacao-sol/services')
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({
+        name: 'Lavagem completa',
+        priceInCents: 7500,
+        durationInMinutes: 90,
+        active: true,
+      })
+      .expect(201);
+
+    expect(created.body).toEqual({
+      id: expect.any(String),
+      name: 'Lavagem completa',
+      priceInCents: 7500,
+      durationInMinutes: 90,
+      active: true,
+    });
+
+    await ownerA.agent
+      .get('/api/car-washes/lavacao-sol/services')
+      .expect(200)
+      .expect([created.body]);
+
+    await ownerB.agent.get('/api/car-washes/lavacao-sol/services').expect(404);
+  });
+
+  it('não autoriza funcionário a administrar o catálogo', async () => {
+    const employee = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'funcionario.sol@example.test',
+    });
+    const client = database.client();
+    await client.connect();
+    await client.query(
+      'UPDATE "Membership" SET role = \'EMPLOYEE\' WHERE "carWashId" = $1',
+      ['lavacao-sol'],
+    );
+    await client.end();
+
+    await employee.agent
+      .post('/api/car-washes/lavacao-sol/services')
+      .set('x-csrf-token', employee.csrfToken)
+      .send({
+        name: 'Lavagem',
+        priceInCents: 5000,
+        durationInMinutes: 60,
+        active: true,
+      })
+      .expect(404);
+  });
+
+  it('rejeita serviço sem nome útil, preço inteiro ou duração positiva', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+
+    for (const invalidService of [
+      {
+        name: '   ',
+        priceInCents: 7500,
+        durationInMinutes: 90,
+        active: true,
+      },
+      {
+        name: 'Lavagem',
+        priceInCents: 75.5,
+        durationInMinutes: 90,
+        active: true,
+      },
+      {
+        name: 'Lavagem',
+        priceInCents: 7500,
+        durationInMinutes: 0,
+        active: true,
+      },
+    ]) {
+      await owner.agent
+        .post('/api/car-washes/lavacao-sol/services')
+        .set('x-csrf-token', owner.csrfToken)
+        .send(invalidService)
+        .expect(400);
+    }
+
+    await owner.agent
+      .get('/api/car-washes/lavacao-sol/services')
+      .expect(200)
+      .expect([]);
+  });
+
+  it('exige CSRF e revoga a sessão no logout', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+
+    await owner.agent
+      .post('/api/car-washes/lavacao-sol/services')
+      .send({
+        name: 'Lavagem',
+        priceInCents: 5000,
+        durationInMinutes: 60,
+        active: true,
+      })
+      .expect(403);
+
+    await owner.agent
+      .post('/api/auth/logout')
+      .set('x-csrf-token', owner.csrfToken)
+      .expect(204);
+
+    await owner.agent.get('/api/car-washes/lavacao-sol/services').expect(401);
+  });
+
+  it('limita tentativas repetidas de login sem expor se a conta existe', async () => {
+    const setupToken = 'token-limite-de-login';
+    await seedOwner(database, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+      setupToken,
+    });
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({ token: setupToken, password: 'Senha-ficticia-123!' })
+      .expect(204);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({
+          email: 'dona.sol@example.test',
+          password: 'Senha-incorreta-123!',
+        })
+        .expect(401)
+        .expect(({ body }) => {
+          expect(body.message).toBe('E-mail ou senha inválidos');
+        });
+    }
+
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        email: 'dona.sol@example.test',
+        password: 'Senha-incorreta-123!',
+      })
+      .expect(429);
+  });
+
+  it('limita tentativas com links de acesso inválidos', async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/auth/set-password')
+        .send({
+          token: `token-invalido-ficticio-${attempt}`,
+          password: 'Senha-ficticia-123!',
+        })
+        .expect(400);
+    }
+
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({
+        token: 'token-invalido-ficticio-final',
+        password: 'Senha-ficticia-123!',
+      })
+      .expect(429);
+  });
+
+  afterAll(async () => {
+    await app?.close();
+    await database?.stop();
   });
 });
+
+async function seedOwner(
+  database: TestDatabase,
+  input: { carWashId: string; email: string; setupToken: string },
+) {
+  const client = database.client();
+  await client.connect();
+  try {
+    const userId = `${input.carWashId}-owner`;
+    await client.query(
+      'INSERT INTO "CarWash" (id, name, slug) VALUES ($1, $2, $3)',
+      [
+        input.carWashId,
+        input.carWashId === 'lavacao-sol' ? 'Lavação Sol' : 'Lavação Lua',
+        input.carWashId,
+      ],
+    );
+    await client.query('INSERT INTO "User" (id, email) VALUES ($1, $2)', [
+      userId,
+      input.email,
+    ]);
+    await client.query(
+      'INSERT INTO "Membership" (id, "userId", "carWashId", role, status) VALUES ($1, $2, $3, $4, $5)',
+      [`${userId}-membership`, userId, input.carWashId, 'OWNER', 'ACTIVE'],
+    );
+    await client.query(
+      'INSERT INTO "AccessToken" (id, "userId", purpose, "tokenHash", "expiresAt") VALUES ($1, $2, $3, $4, $5)',
+      [
+        `${userId}-token`,
+        userId,
+        'SET_PASSWORD',
+        createHash('sha256').update(input.setupToken).digest('hex'),
+        new Date(Date.now() + 3_600_000),
+      ],
+    );
+  } finally {
+    await client.end();
+  }
+}
+
+async function authenticatedOwner(
+  database: TestDatabase,
+  app: INestApplication<App>,
+  input: { carWashId: string; email: string },
+): Promise<{ agent: ReturnType<typeof request.agent>; csrfToken: string }> {
+  const setupToken = `token-ficticio-${input.carWashId}`;
+  await seedOwner(database, { ...input, setupToken });
+
+  await request(app.getHttpServer())
+    .post('/api/auth/set-password')
+    .send({ token: setupToken, password: 'Senha-ficticia-123!' })
+    .expect(204);
+
+  const agent = request.agent(app.getHttpServer());
+  const response = await agent.post('/api/auth/login').send({
+    email: input.email,
+    password: 'Senha-ficticia-123!',
+  });
+
+  return { agent, csrfToken: response.body.csrfToken as string };
+}
