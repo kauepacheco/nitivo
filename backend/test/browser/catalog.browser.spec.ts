@@ -116,6 +116,52 @@ test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular',
   await expect(page.getByText('R$ 75,00')).toBeVisible();
 });
 
+test('cliente consulta serviços ativos e contato da lavação no celular', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const setupLink = provisionOwner({
+    baseUrl,
+    carWashName: 'Lavação Horizonte',
+    slug: 'lavacao-horizonte',
+    email: 'dona.horizonte@example.test',
+  });
+  await page.goto(setupLink);
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Definir senha' }).click();
+  await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await page.getByLabel('Telefone operacional com DDD').fill('(11) 99999-0001');
+  await page
+    .getByRole('button', { name: 'Salvar informações públicas' })
+    .click();
+  await expect(
+    page.getByText('Informações públicas atualizadas.'),
+  ).toBeVisible();
+
+  await page.getByLabel('Nome').fill('Lavagem completa');
+  await page.getByLabel('Preço (R$)').fill('75.00');
+  await page.getByLabel('Duração (min)').fill('90');
+  await page.getByRole('button', { name: 'Cadastrar serviço' }).click();
+  await page.getByLabel('Nome').fill('Serviço inativo');
+  await page.getByLabel('Preço (R$)').fill('10.00');
+  await page.getByLabel('Duração (min)').fill('15');
+  await page.getByLabel('Serviço ativo').uncheck();
+  await page.getByRole('button', { name: 'Cadastrar serviço' }).click();
+
+  await page.goto(`${baseUrl}/lavacoes/lavacao-horizonte`);
+  await expect(
+    page.getByRole('heading', { name: 'Lavação Horizonte' }),
+  ).toBeVisible();
+  await expect(page.getByText('Lavagem completa')).toBeVisible();
+  await expect(page.getByText('90 min')).toBeVisible();
+  await expect(page.getByText('R$ 75,00')).toBeVisible();
+  await expect(page.getByText('Contato: +5511999990001')).toBeVisible();
+  await expect(page.getByText('Serviço inativo')).not.toBeVisible();
+});
+
 test('proprietário convida e revoga uma funcionária pela interface', async ({
   page,
 }) => {

@@ -203,6 +203,121 @@ describe('Nitivo API (e2e)', () => {
       .expect([created.body]);
   });
 
+  it('expõe somente a página e os serviços ativos pelo slug público', async () => {
+    const ownerA = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-publica',
+      email: 'dona.publica@example.test',
+    });
+    const ownerB = await authenticatedOwner(database, app, {
+      carWashId: 'outra-lavacao',
+      email: 'dona.outra@example.test',
+    });
+
+    await ownerA.agent
+      .patch('/api/car-washes/lavacao-publica/public-profile')
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({ operationalContactPhone: '(11) 99999-0001' })
+      .expect(200)
+      .expect({ operationalContactPhone: '5511999990001' });
+    await ownerA.agent
+      .patch('/api/car-washes/lavacao-publica/public-profile')
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({ operationalContactPhone: '5511999990001' })
+      .expect(200)
+      .expect({ operationalContactPhone: '5511999990001' });
+    await ownerA.agent
+      .patch('/api/car-washes/lavacao-publica/public-profile')
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({ operationalContactPhone: '123' })
+      .expect(400);
+    await ownerB.agent
+      .patch('/api/car-washes/lavacao-publica/public-profile')
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send({ operationalContactPhone: '5511999990002' })
+      .expect(404);
+
+    const client = database.client();
+    await client.connect();
+    await client.query(
+      'INSERT INTO "ServiceOffering" (id, "carWashId", name, "priceInCents", "durationInMinutes", active) VALUES ($1, $2, $3, $4, $5, $6), ($7, $2, $8, $9, $10, $11)',
+      [
+        'ativo',
+        'lavacao-publica',
+        'Lavagem completa',
+        7500,
+        90,
+        true,
+        'inativo',
+        'Serviço interno',
+        1,
+        1,
+        false,
+      ],
+    );
+    await client.query(
+      'INSERT INTO "ServiceOffering" (id, "carWashId", name, "priceInCents", "durationInMinutes", active) VALUES ($1, $2, $3, $4, $5, $6)',
+      [
+        'outro-servico',
+        'outra-lavacao',
+        'Serviço de outra lavação',
+        9900,
+        120,
+        true,
+      ],
+    );
+    await client.end();
+
+    await request(app.getHttpServer())
+      .get('/api/public/car-washes/lavacao-publica')
+      .expect(200)
+      .expect({
+        name: 'Lavação Lua',
+        operationalContactPhone: '5511999990001',
+        services: [
+          {
+            id: 'ativo',
+            name: 'Lavagem completa',
+            priceInCents: 7500,
+            durationInMinutes: 90,
+          },
+        ],
+      });
+    await request(app.getHttpServer())
+      .get('/api/public/car-washes/outra-lavacao')
+      .expect(200)
+      .expect({
+        name: 'Lavação Lua',
+        operationalContactPhone: null,
+        services: [
+          {
+            id: 'outro-servico',
+            name: 'Serviço de outra lavação',
+            priceInCents: 9900,
+            durationInMinutes: 120,
+          },
+        ],
+      });
+    await request(app.getHttpServer())
+      .get('/api/public/car-washes/inexistente')
+      .expect(404);
+
+    const openApi = await request(app.getHttpServer())
+      .get('/docs-json')
+      .expect(200);
+    expect(
+      openApi.body.paths['/api/public/car-washes/{slug}'].get.responses,
+    ).toMatchObject({
+      200: {
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/PublicCarWashPageDto' },
+          },
+        },
+      },
+      404: { description: 'Lavação não encontrada' },
+    });
+  });
+
   it('não autoriza funcionário a administrar o catálogo', async () => {
     const employee = await authenticatedOwner(database, app, {
       carWashId: 'lavacao-sol',

@@ -142,6 +142,21 @@ button:hover {
   width: min(1120px, calc(100% - 40px));
   margin: 0 auto 64px;
 }
+.public-page {
+  width: min(680px, calc(100% - 32px));
+  margin: 0 auto 64px;
+}
+.public-page header {
+  border-bottom: 0;
+}
+.contact-link {
+  display: inline-block;
+  color: #154f37;
+  font-weight: 750;
+}
+.public-profile-panel {
+  margin-bottom: 24px;
+}
 header {
   display: flex;
   justify-content: space-between;

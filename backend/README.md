@@ -1,9 +1,10 @@
 # Aplicação do Nitivo
 
 Monólito modular do Nitivo: API NestJS, interface React/Vite e PostgreSQL. Os
-três primeiros incrementos permitem ao operador provisionar uma lavação, ao
+quatro primeiros incrementos permitem ao operador provisionar uma lavação, ao
 proprietário definir sua senha, administrar um catálogo persistido, convidar ou
-revogar funcionários e recuperar o acesso da equipe de forma assistida.
+revogar funcionários, recuperar o acesso da equipe de forma assistida e publicar
+os serviços ativos com preço, duração e contato operacional.
 
 ## Requisitos
 
@@ -110,6 +111,12 @@ A aplicação fica em `http://127.0.0.1:3000`, a saúde em `GET /health` e a
 documentação OpenAPI em `/docs`. Durante alterações, gere a interface com
 `npm run build:client` e execute a API com `npm run start:dev`.
 
+O proprietário configura o telefone operacional em **Informações públicas**.
+A página compartilhável fica em `/lavacoes/<slug-da-lavacao>` e mostra somente
+serviços ativos. O endpoint público correspondente é
+`GET /api/public/car-washes/<slug-da-lavacao>`; ele não exige autenticação e não
+expõe membros da equipe ou dados internos do tenant.
+
 Em produção, a sessão usa cookie `Secure`, `HttpOnly` e `SameSite=Strict`.
 Operações autenticadas que alteram estado também exigem o token CSRF devolvido
 pelo login. Sessões têm expiração por 30 minutos de inatividade e limite absoluto
@@ -142,4 +149,5 @@ As decisões da stack estão no [ADR 0001](../docs/adr/0001-stack-inicial.md) e 
 escopo dos incrementos está nas issues
 [#2](https://github.com/kauepacheco/nitivo/issues/2),
 [#3](https://github.com/kauepacheco/nitivo/issues/3) e
-[#4](https://github.com/kauepacheco/nitivo/issues/4).
+[#4](https://github.com/kauepacheco/nitivo/issues/4) e
+[#5](https://github.com/kauepacheco/nitivo/issues/5).

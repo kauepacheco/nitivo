@@ -19,6 +19,14 @@ type ServiceOffering = {
   active: boolean;
 };
 
+type PublicServiceOffering = Omit<ServiceOffering, 'active'>;
+
+type PublicCarWashPage = {
+  name: string;
+  operationalContactPhone: string | null;
+  services: PublicServiceOffering[];
+};
+
 type InvitationDetails = {
   carWashName: string;
   email: string;
@@ -32,6 +40,7 @@ type Team = {
 
 export function App() {
   const setupToken = new URLSearchParams(window.location.search).get('token');
+  const publicMatch = window.location.pathname.match(/^\/lavacoes\/([^/]+)$/);
   const [session, setSession] = useState<Session | null>(null);
   const [selectedCarWashId, setSelectedCarWashId] = useState<string | null>(
     null,
@@ -41,7 +50,8 @@ export function App() {
   useEffect(() => {
     if (
       window.location.pathname === '/set-password' ||
-      window.location.pathname === '/reset-password'
+      window.location.pathname === '/reset-password' ||
+      publicMatch
     ) {
       setLoading(false);
       return;
@@ -70,6 +80,8 @@ export function App() {
       />
     );
   }
+  if (publicMatch)
+    return <PublicCarWash slug={decodeURIComponent(publicMatch[1])} />;
   if (!session) {
     return <Login onLogin={setSession} />;
   }
@@ -91,6 +103,64 @@ export function App() {
       onSelectCarWash={setSelectedCarWashId}
       onLogout={() => setSession(null)}
     />
+  );
+}
+
+function PublicCarWash({ slug }: { slug: string }) {
+  const [page, setPage] = useState<PublicCarWashPage | null>(null);
+  const [message, setMessage] = useState('Carregando…');
+  useEffect(() => {
+    void api<PublicCarWashPage>(
+      `/api/public/car-washes/${encodeURIComponent(slug)}`,
+    )
+      .then((result) => {
+        setPage(result);
+        setMessage('');
+      })
+      .catch((error) => setMessage(errorMessage(error)));
+  }, [slug]);
+  if (!page)
+    return (
+      <main className="center-card">
+        <Brand />
+        <p role="status">{message}</p>
+      </main>
+    );
+  return (
+    <main className="public-page">
+      <Brand />
+      <section className="intro">
+        <span className="eyebrow">Serviços</span>
+        <h1>{page.name}</h1>
+        <p>Escolha o atendimento ideal para o seu veículo.</p>
+        {page.operationalContactPhone ? (
+          <a
+            className="contact-link"
+            href={`tel:+${page.operationalContactPhone}`}
+          >
+            Contato: +{page.operationalContactPhone}
+          </a>
+        ) : null}
+      </section>
+      <section className="panel">
+        <h2>Serviços disponíveis</h2>
+        {page.services.length === 0 ? (
+          <p className="empty">Nenhum serviço disponível no momento.</p>
+        ) : (
+          <ul className="service-list">
+            {page.services.map((service) => (
+              <li key={service.id}>
+                <div>
+                  <strong>{service.name}</strong>
+                  <span>{service.durationInMinutes} min</span>
+                </div>
+                <b>{formatMoney(service.priceInCents)}</b>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
   );
 }
 
@@ -363,6 +433,7 @@ function OwnerWorkspace({
   onLogout: () => void;
 }) {
   const [services, setServices] = useState<ServiceOffering[]>([]);
+  const [operationalContactPhone, setOperationalContactPhone] = useState('');
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -371,7 +442,35 @@ function OwnerWorkspace({
     )
       .then(setServices)
       .catch((error) => setMessage(errorMessage(error)));
+    void api<{ operationalContactPhone: string | null }>(
+      `/api/car-washes/${membership.carWashId}/public-profile`,
+    )
+      .then((profile) =>
+        setOperationalContactPhone(profile.operationalContactPhone ?? ''),
+      )
+      .catch((error) => setMessage(errorMessage(error)));
   }, [membership.carWashId]);
+
+  async function updatePublicProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      const profile = await api<{ operationalContactPhone: string }>(
+        `/api/car-washes/${membership.carWashId}/public-profile`,
+        {
+          method: 'PATCH',
+          headers: { 'x-csrf-token': session.csrfToken },
+          body: JSON.stringify({
+            operationalContactPhone: form.get('operationalContactPhone'),
+          }),
+        },
+      );
+      setOperationalContactPhone(profile.operationalContactPhone);
+      setMessage('Informações públicas atualizadas.');
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
 
   async function createService(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -412,6 +511,26 @@ function OwnerWorkspace({
         <span className="eyebrow">Catálogo</span>
         <h1>Serviços da sua lavação</h1>
         <p>Cadastre valores em reais e a duração prevista do atendimento.</p>
+      </section>
+      <section className="panel public-profile-panel">
+        <h2>Informações públicas</h2>
+        <p>Este contato será exibido para clientes na página da lavação.</p>
+        <form onSubmit={updatePublicProfile}>
+          <label>
+            Telefone operacional com DDD
+            <input
+              name="operationalContactPhone"
+              type="tel"
+              value={operationalContactPhone}
+              onChange={(event) =>
+                setOperationalContactPhone(event.target.value)
+              }
+              placeholder="(11) 99999-0001"
+              required
+            />
+          </label>
+          <button type="submit">Salvar informações públicas</button>
+        </form>
       </section>
       <div className="columns">
         <section className="panel">

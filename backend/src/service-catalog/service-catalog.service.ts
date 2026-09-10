@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateServiceOfferingDto } from './create-service-offering.dto';
+import { UpdatePublicProfileDto } from './public-profile.dto';
 
 @Injectable()
 export class ServiceCatalogService {
@@ -26,6 +27,38 @@ export class ServiceCatalogService {
       select: serviceOfferingView,
     });
   }
+
+  async getPublicPage(slug: string) {
+    const carWash = await this.prisma.carWash.findUnique({
+      where: { slug },
+      select: {
+        name: true,
+        operationalContactPhone: true,
+        services: {
+          where: { active: true },
+          orderBy: { createdAt: 'asc' },
+          select: publicServiceOfferingView,
+        },
+      },
+    });
+    if (!carWash) return null;
+    return carWash;
+  }
+
+  updatePublicProfile(carWashId: string, input: UpdatePublicProfileDto) {
+    return this.prisma.carWash.update({
+      where: { id: carWashId },
+      data: { operationalContactPhone: input.operationalContactPhone },
+      select: { operationalContactPhone: true },
+    });
+  }
+
+  getPublicProfile(carWashId: string) {
+    return this.prisma.carWash.findUniqueOrThrow({
+      where: { id: carWashId },
+      select: { operationalContactPhone: true },
+    });
+  }
 }
 
 const serviceOfferingView = {
@@ -34,4 +67,11 @@ const serviceOfferingView = {
   priceInCents: true,
   durationInMinutes: true,
   active: true,
+} as const;
+
+const publicServiceOfferingView = {
+  id: true,
+  name: true,
+  priceInCents: true,
+  durationInMinutes: true,
 } as const;

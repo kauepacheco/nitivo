@@ -70,26 +70,27 @@ própria pessoa e revogação das sessões anteriores.
   normal; testes HTTP e de navegador cobrem expiração, reuso e concorrência;
 - procedimento de entrega privada e perda do canal conhecido registrado sem usar
   dados do formulário público como prova de identidade.
+- página pública móvel por slug exibe a lavação e somente seus serviços ativos,
+  com preços e durações; endpoint público mantém o isolamento entre lavações.
 
 ## Objetivo atual
 
-Os três primeiros tickets estão implementados localmente e validados com dados
-fictícios.
+O ticket 4 está implementado localmente e validado com dados fictícios.
 O produto ainda não está pronto para demonstração remota ou piloto: faltam os
 incrementos seguintes, implantação e critérios operacionais e de privacidade.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação o ticket 4,
-[issue #5](https://github.com/kauepacheco/nitivo/issues/5): página pública móvel
-com os serviços ativos, preços e durações de uma lavação.
+Implementar em nova solicitação o ticket 5,
+[issue #6](https://github.com/kauepacheco/nitivo/issues/6): configuração de
+capacidade e consulta de horários disponíveis.
 
 ## Pendências de execução
 
-- aguardar nova solicitação antes de iniciar o ticket 4;
+- aguardar nova solicitação antes de iniciar o ticket 5;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar os tickets 4 a 22 em sequência;
+- implementar e verificar os tickets 5 a 22 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 - preservar as alterações locais anteriores no backend, catálogo e skills.

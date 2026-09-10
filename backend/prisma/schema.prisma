@@ -22,13 +22,14 @@ enum AccessTokenPurpose {
 }
 
 model CarWash {
-  id                  String               @id @default(cuid())
-  name                String
-  slug                String               @unique
-  createdAt           DateTime             @default(now()) @db.Timestamptz(3)
-  memberships         Membership[]
-  services            ServiceOffering[]
-  employeeInvitations EmployeeInvitation[]
+  id                      String               @id @default(cuid())
+  name                    String
+  slug                    String               @unique
+  operationalContactPhone String?
+  createdAt               DateTime             @default(now()) @db.Timestamptz(3)
+  memberships             Membership[]
+  services                ServiceOffering[]
+  employeeInvitations     EmployeeInvitation[]
 }
 
 model User {
