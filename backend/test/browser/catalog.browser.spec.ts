@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test';
 import { execFileSync, spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
+import { readFileSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   availablePort,
   startTestDatabase,
@@ -53,7 +57,8 @@ test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular',
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  const setupLink = execFileSync(
+  const outputFile = join(tmpdir(), `nitivo-browser-link-${randomUUID()}.txt`);
+  execFileSync(
     process.execPath,
     [
       '--require',
@@ -65,13 +70,17 @@ test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular',
       'lavacao-horizonte',
       '--owner-email',
       'dona.horizonte@example.test',
+      '--output-file',
+      outputFile,
     ],
     {
       cwd: process.cwd(),
       env: { ...process.env, APP_URL: baseUrl },
       encoding: 'utf8',
     },
-  ).trim();
+  );
+  const setupLink = readFileSync(outputFile, 'utf8').trim();
+  unlinkSync(outputFile);
 
   await page.goto(setupLink);
   await page.getByLabel('Senha').fill('Senha-ficticia-123!');

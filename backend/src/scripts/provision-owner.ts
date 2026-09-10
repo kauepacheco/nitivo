@@ -5,6 +5,8 @@ import {
   PrismaClient,
 } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
 
 const { values } = parseArgs({
@@ -12,6 +14,7 @@ const { values } = parseArgs({
     'car-wash-name': { type: 'string' },
     slug: { type: 'string' },
     'owner-email': { type: 'string' },
+    'output-file': { type: 'string' },
   },
 });
 
@@ -21,6 +24,7 @@ const ownerEmail = required(values['owner-email'], '--owner-email')
   .trim()
   .toLowerCase();
 const databaseUrl = required(process.env.DATABASE_URL, 'DATABASE_URL');
+const outputFile = required(values['output-file'], '--output-file');
 if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
   throw new Error(
     'O slug deve conter apenas letras minúsculas, números e hífens',
@@ -43,35 +47,46 @@ async function main() {
   const rawToken = randomBytes(32).toString('base64url');
   const tokenHash = createHash('sha256').update(rawToken).digest('hex');
   const expiresAt = new Date(Date.now() + 24 * 3_600_000);
-
-  await prisma.$transaction(async (transaction) => {
-    const carWash = await transaction.carWash.create({
-      data: { name: carWashName, slug },
-    });
-    const user = await transaction.user.create({
-      data: { email: ownerEmail },
-    });
-    await transaction.membership.create({
-      data: {
-        userId: user.id,
-        carWashId: carWash.id,
-        role: MembershipRole.OWNER,
-      },
-    });
-    await transaction.accessToken.create({
-      data: {
-        userId: user.id,
-        purpose: AccessTokenPurpose.SET_PASSWORD,
-        tokenHash,
-        expiresAt,
-      },
-    });
-  });
-
   const appUrl = process.env.APP_URL ?? 'http://127.0.0.1:3000';
   const setupUrl = new URL('/set-password', appUrl);
   setupUrl.searchParams.set('token', rawToken);
-  process.stdout.write(`${setupUrl.toString()}\n`);
+
+  await mkdir(dirname(outputFile), { recursive: true, mode: 0o700 });
+  await writeFile(outputFile, `${setupUrl.toString()}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+    flag: 'wx',
+  });
+
+  try {
+    await prisma.$transaction(async (transaction) => {
+      const carWash = await transaction.carWash.create({
+        data: { name: carWashName, slug },
+      });
+      const user = await transaction.user.create({
+        data: { email: ownerEmail },
+      });
+      await transaction.membership.create({
+        data: {
+          userId: user.id,
+          carWashId: carWash.id,
+          role: MembershipRole.OWNER,
+        },
+      });
+      await transaction.accessToken.create({
+        data: {
+          userId: user.id,
+          purpose: AccessTokenPurpose.SET_PASSWORD,
+          tokenHash,
+          expiresAt,
+        },
+      });
+    });
+  } catch (error) {
+    await unlink(outputFile).catch(() => undefined);
+    throw error;
+  }
+  process.stdout.write('Link privado gravado no arquivo indicado.\n');
 }
 
 void main()

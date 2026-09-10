@@ -48,12 +48,14 @@ configuradas, o operador cria a lavação e seu primeiro proprietário pela CLI:
 npm run provision:owner -- \
   --car-wash-name "Lavação Horizonte" \
   --slug "lavacao-horizonte" \
-  --owner-email "dona.horizonte@example.test"
+  --owner-email "dona.horizonte@example.test" \
+  --output-file ".local/owner-setup-link.txt"
 ```
 
-O comando imprime uma única vez o link privado de definição de senha, válido
-por 24 horas. Entregue-o por um canal previamente conferido; não o copie para
-logs, issues ou commits. Os exemplos acima são fictícios.
+O comando grava uma única vez o link privado de definição de senha, válido por
+24 horas, em arquivo com permissão `0600`; a saída padrão nunca contém o token.
+Entregue o conteúdo por um canal previamente conferido e remova o arquivo depois.
+Não copie o link para logs, issues ou commits. Os exemplos acima são fictícios.
 
 ## Execução
 

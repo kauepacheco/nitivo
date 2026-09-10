@@ -1,7 +1,10 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
@@ -78,6 +81,7 @@ describe('Nitivo API (e2e)', () => {
   });
 
   it('provisiona a lavação e entrega ao operador um link temporário sem criar cadastro público', async () => {
+    const outputFile = join(tmpdir(), `nitivo-link-${randomUUID()}.txt`);
     const output = execFileSync(
       process.execPath,
       [
@@ -90,6 +94,8 @@ describe('Nitivo API (e2e)', () => {
         'lavacao-horizonte',
         '--owner-email',
         'dona.horizonte@example.test',
+        '--output-file',
+        outputFile,
       ],
       {
         cwd: process.cwd(),
@@ -97,7 +103,9 @@ describe('Nitivo API (e2e)', () => {
         encoding: 'utf8',
       },
     );
-    const link = output.trim();
+    expect(output).toBe('Link privado gravado no arquivo indicado.\n');
+    const link = readFileSync(outputFile, 'utf8').trim();
+    unlinkSync(outputFile);
     expect(link).toMatch(
       /^http:\/\/127\.0\.0\.1:3000\/set-password\?token=[A-Za-z0-9_-]+$/,
     );
@@ -107,6 +115,39 @@ describe('Nitivo API (e2e)', () => {
       .post('/api/auth/set-password')
       .send({ token, password: 'Senha-ficticia-123!' })
       .expect(204);
+  });
+
+  it('não provisiona a lavação quando o arquivo privado de saída já existe', async () => {
+    const outputFile = join(tmpdir(), `nitivo-link-${randomUUID()}.txt`);
+    writeFileSync(outputFile, 'não sobrescrever\n', { mode: 0o600 });
+
+    expect(() =>
+      execFileSync(
+        process.execPath,
+        [
+          '--require',
+          'ts-node/register',
+          'src/scripts/provision-owner.ts',
+          '--car-wash-name',
+          'Lavação Arquivo Existente',
+          '--slug',
+          'lavacao-arquivo-existente',
+          '--owner-email',
+          'dona.arquivo@example.test',
+          '--output-file',
+          outputFile,
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          stdio: 'pipe',
+        },
+      ),
+    ).toThrow();
+
+    expect(readFileSync(outputFile, 'utf8')).toBe('não sobrescrever\n');
+    unlinkSync(outputFile);
+    expect(await countCarWashes(database, 'lavacao-arquivo-existente')).toBe(0);
   });
 
   it('persiste serviços válidos e isola o catálogo entre lavações', async () => {
@@ -144,6 +185,22 @@ describe('Nitivo API (e2e)', () => {
       .expect([created.body]);
 
     await ownerB.agent.get('/api/car-washes/lavacao-sol/services').expect(404);
+
+    await ownerB.agent
+      .post('/api/car-washes/lavacao-sol/services')
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send({
+        name: 'Serviço invasor',
+        priceInCents: 1,
+        durationInMinutes: 1,
+        active: true,
+      })
+      .expect(404);
+
+    await ownerA.agent
+      .get('/api/car-washes/lavacao-sol/services')
+      .expect(200)
+      .expect([created.body]);
   });
 
   it('não autoriza funcionário a administrar o catálogo', async () => {
@@ -288,6 +345,65 @@ describe('Nitivo API (e2e)', () => {
       .expect(429);
   });
 
+  it('rejeita link de definição de senha expirado', async () => {
+    await seedOwner(database, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+      setupToken: 'token-ficticio-expirado',
+      expiresAt: new Date(Date.now() - 60_000),
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({
+        token: 'token-ficticio-expirado',
+        password: 'Senha-ficticia-123!',
+      })
+      .expect(400);
+  });
+
+  it('encerra sessão expirada por inatividade', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+    await updateSessions(
+      database,
+      '"expiresAt" = NOW() - INTERVAL \'1 minute\'',
+    );
+
+    await owner.agent.get('/api/auth/session').expect(401);
+  });
+
+  it('encerra sessão ao atingir seu limite absoluto', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+    await updateSessions(
+      database,
+      '"absoluteExpiresAt" = NOW() - INTERVAL \'1 minute\'',
+    );
+
+    await owner.agent.get('/api/auth/session').expect(401);
+  });
+
+  it('revoga sessões existentes quando uma nova senha é definida', async () => {
+    const owner = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+    const newToken = 'token-ficticio-nova-senha';
+    await seedAccessToken(database, 'lavacao-sol-owner', newToken);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/set-password')
+      .send({ token: newToken, password: 'Nova-senha-ficticia-123!' })
+      .expect(204);
+
+    await owner.agent.get('/api/auth/session').expect(401);
+  });
+
   afterAll(async () => {
     await app?.close();
     await database?.stop();
@@ -296,7 +412,12 @@ describe('Nitivo API (e2e)', () => {
 
 async function seedOwner(
   database: TestDatabase,
-  input: { carWashId: string; email: string; setupToken: string },
+  input: {
+    carWashId: string;
+    email: string;
+    setupToken: string;
+    expiresAt?: Date;
+  },
 ) {
   const client = database.client();
   await client.connect();
@@ -325,7 +446,7 @@ async function seedOwner(
         userId,
         'SET_PASSWORD',
         createHash('sha256').update(input.setupToken).digest('hex'),
-        new Date(Date.now() + 3_600_000),
+        input.expiresAt ?? new Date(Date.now() + 3_600_000),
       ],
     );
   } finally {
@@ -353,4 +474,51 @@ async function authenticatedOwner(
   });
 
   return { agent, csrfToken: response.body.csrfToken as string };
+}
+
+async function updateSessions(database: TestDatabase, assignment: string) {
+  const client = database.client();
+  await client.connect();
+  try {
+    await client.query(`UPDATE "Session" SET ${assignment}`);
+  } finally {
+    await client.end();
+  }
+}
+
+async function seedAccessToken(
+  database: TestDatabase,
+  userId: string,
+  token: string,
+) {
+  const client = database.client();
+  await client.connect();
+  try {
+    await client.query(
+      'INSERT INTO "AccessToken" (id, "userId", purpose, "tokenHash", "expiresAt") VALUES ($1, $2, $3, $4, $5)',
+      [
+        randomUUID(),
+        userId,
+        'SET_PASSWORD',
+        createHash('sha256').update(token).digest('hex'),
+        new Date(Date.now() + 3_600_000),
+      ],
+    );
+  } finally {
+    await client.end();
+  }
+}
+
+async function countCarWashes(database: TestDatabase, slug: string) {
+  const client = database.client();
+  await client.connect();
+  try {
+    const result = await client.query<{ count: string }>(
+      'SELECT COUNT(*) AS count FROM "CarWash" WHERE slug = $1',
+      [slug],
+    );
+    return Number(result.rows[0].count);
+  } finally {
+    await client.end();
+  }
 }

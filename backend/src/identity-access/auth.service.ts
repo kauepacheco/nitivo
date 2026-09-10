@@ -5,7 +5,11 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { AccessTokenPurpose, MembershipStatus } from '@prisma/client';
+import {
+  AccessTokenPurpose,
+  MembershipRole,
+  MembershipStatus,
+} from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
@@ -127,11 +131,7 @@ export class AuthService {
       csrfToken,
       user: {
         email: user.email,
-        memberships: user.memberships.map((membership) => ({
-          carWashId: membership.carWashId,
-          carWashName: membership.carWash.name,
-          role: membership.role,
-        })),
+        memberships: user.memberships.map(toMembershipView),
       },
     };
   }
@@ -176,11 +176,7 @@ export class AuthService {
       userId: session.userId,
       email: session.user.email,
       csrfToken: session.csrfToken,
-      memberships: session.user.memberships.map((membership) => ({
-        carWashId: membership.carWashId,
-        carWashName: membership.carWash.name,
-        role: membership.role,
-      })),
+      memberships: session.user.memberships.map(toMembershipView),
     };
   }
 
@@ -255,4 +251,16 @@ function addHours(date: Date, hours: number) {
 
 function minDate(first: Date, second: Date) {
   return first < second ? first : second;
+}
+
+function toMembershipView(membership: {
+  carWashId: string;
+  role: MembershipRole;
+  carWash: { name: string };
+}) {
+  return {
+    carWashId: membership.carWashId,
+    carWashName: membership.carWash.name,
+    role: membership.role,
+  };
 }

@@ -9,7 +9,7 @@ services:
     ports:
       - "54329:5432"
     volumes:
-      - nitivo-postgres:/var/lib/postgresql/data
+      - nitivo-postgres:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d nitivo"]
       interval: 2s
