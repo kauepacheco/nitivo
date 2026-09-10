@@ -41,8 +41,9 @@ persistido pela interface, com isolamento entre lavações.
   [índice dos tickets](specs/tickets-primeiro-piloto-saas.md) atualizado e issue #1 preservada;
 - PostgreSQL 18 e Prisma 7 introduzidos com migration versionada, constraints de
   preço/duração e instantes armazenados com fuso explícito;
-- provisionamento da lavação e do proprietário por CLI, com link privado de
-  definição de senha armazenado somente como hash, expirável e de uso único;
+- provisionamento da lavação e do proprietário por CLI, com token armazenado no
+  banco somente como hash, expirável e de uso único; o link bruto é gravado em
+  arquivo temporário protegido para entrega manual e posterior remoção;
 - autenticação por Argon2id, sessão no PostgreSQL, cookie protegido, expiração
   por inatividade e absoluta, logout, CSRF e limite persistido de tentativas;
 - catálogo acessível somente por proprietário com vínculo ativo no tenant,

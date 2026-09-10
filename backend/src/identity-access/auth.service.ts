@@ -11,7 +11,7 @@ import {
   MembershipStatus,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
 import {
   AUTHENTICATION_MAX_FAILURES,
@@ -20,6 +20,7 @@ import {
   SESSION_IDLE_MINUTES,
 } from './auth.constants';
 import { AuthenticatedSession } from './auth.types';
+import { hashSecret } from './hash-secret';
 
 @Injectable()
 export class AuthService {
@@ -235,10 +236,6 @@ export class AuthService {
       });
     });
   }
-}
-
-export function hashSecret(secret: string) {
-  return createHash('sha256').update(secret).digest('hex');
 }
 
 function addMinutes(date: Date, minutes: number) {

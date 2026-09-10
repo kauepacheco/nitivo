@@ -4,10 +4,11 @@ import {
   MembershipRole,
   PrismaClient,
 } from '@prisma/client';
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { parseArgs } from 'node:util';
+import { hashSecret } from '../identity-access/hash-secret';
 
 const { values } = parseArgs({
   options: {
@@ -45,7 +46,7 @@ function required(value: string | undefined, name: string): string {
 
 async function main() {
   const rawToken = randomBytes(32).toString('base64url');
-  const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+  const tokenHash = hashSecret(rawToken);
   const expiresAt = new Date(Date.now() + 24 * 3_600_000);
   const appUrl = process.env.APP_URL ?? 'http://127.0.0.1:3000';
   const setupUrl = new URL('/set-password', appUrl);
