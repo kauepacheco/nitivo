@@ -1,6 +1,6 @@
 # Marco atual
 
-Última atualização: 10 de setembro de 2026.
+Última atualização: 11 de setembro de 2026.
 
 ## Fase
 
@@ -90,6 +90,14 @@ consulta pública de horários disponíveis para um serviço.
 
 ## Objetivo atual
 
+Manutenção do repositório concluída: objetos Git compactados sem descarte de
+histórico recuperável; formatação pendente do teste de health registrada em
+commit; oito skills selecionadas, revisadas e versionadas com licença, mantendo
+as outras 29 em backup local. A seleção e a recuperação estão documentadas em
+[Skills do Nitivo](../.agents/skills/README.md). A consulta ao remoto falhou por
+autenticação SSH; a sincronização com o GitHub permanece sem confirmação e
+nenhum push foi realizado nesta manutenção.
+
 O ticket 5 está implementado localmente e validado com dados fictícios.
 O produto ainda não está pronto para demonstração remota ou piloto: faltam os
 incrementos seguintes, implantação e critérios operacionais e de privacidade.
@@ -108,7 +116,8 @@ reserva pública e exibição na agenda da equipe.
 - implementar e verificar os tickets 6 a 22 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
-- preservar as alterações locais anteriores no backend, catálogo e skills.
+- sincronizar os commits locais com o GitHub após restabelecer o acesso SSH e
+  receber solicitação explícita de push.
 
 ## Orientação para uma nova sessão
 
