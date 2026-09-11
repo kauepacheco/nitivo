@@ -90,13 +90,18 @@ consulta pública de horários disponíveis para um serviço.
 
 ## Objetivo atual
 
-Manutenção do repositório concluída: objetos Git compactados sem descarte de
-histórico recuperável; formatação pendente do teste de health registrada em
-commit; oito skills selecionadas, revisadas e versionadas com licença, mantendo
-as outras 29 em backup local. A seleção e a recuperação estão documentadas em
-[Skills do Nitivo](../.agents/skills/README.md). A consulta ao remoto falhou por
-autenticação SSH; a sincronização com o GitHub permanece sem confirmação e
-nenhum push foi realizado nesta manutenção.
+Alinhamento da coleção de skills concluído: por solicitação expressa do
+proprietário, as 37 skills locais foram incorporadas, substituindo a seleção de
+oito. Instruções, referências, metadados e scripts revisados; inventário, lock e
+regras do AGENTS.md alinhados. As 37 skills passaram pelo validador local,
+metadados e links foram conferidos, e seis testes dos scripts passaram. Detalhes em
+[Skills do Nitivo](../.agents/skills/README.md). Nenhum hook, dependência opcional,
+serviço ou workflow da coleção foi ativado por essa incorporação.
+
+A consulta ao remoto nesta sessão falhou por autenticação SSH. HEAD e a referência
+local origin/main coincidiam antes desta mudança, mas isso não comprova o estado
+atual no GitHub. A sincronização remota permanece sem confirmação; nenhum push
+foi realizado.
 
 O ticket 5 está implementado localmente e validado com dados fictícios.
 O produto ainda não está pronto para demonstração remota ou piloto: faltam os

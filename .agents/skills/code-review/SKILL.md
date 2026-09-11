@@ -3,7 +3,7 @@ name: code-review
 description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
 ---
 
-Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
+Two-axis review of committed changes, local work, or both:
 
 - **Standards**: does the code conform to this repo's documented coding standards?
 - **Spec**: does the code faithfully implement the originating issue / spec?
@@ -16,13 +16,26 @@ and report that the tracker configuration is missing.
 
 ## Process
 
-### 1. Pin the fixed point
+### 1. Fix the review scope
 
-Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.). If they didn't specify one, ask for it.
+Inspect `git status --short` first and record the paths belonging to the request.
+Choose the mode from the user's request or the invoking skill:
 
-Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
+- **Committed branch / PR / since a fixed point:** resolve the base to a commit
+  SHA and capture `git diff <base-sha>...HEAD` and `git log <base-sha>..HEAD --oneline`.
+  Reuse a base already supplied in the session; ask only if it cannot be inferred.
+- **Local work / before committing:** capture both `git diff -- <task-paths>` and
+  `git diff --cached -- <task-paths>`. List untracked files with
+  `git ls-files --others --exclude-standard -- <task-paths>` and read those files
+  explicitly; ordinary diffs omit them. Review the resulting file contents as
+  well as both diffs, since staged and unstaged changes can overlap.
+- **Both:** collect both sets when the request includes committed and local work.
 
-Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside two parallel sub-agents.
+Pass the same snapshot, file list and commands to both reviewers. Include only
+changes belonging to the task and do not stage or commit to manufacture a diff.
+If a ref is invalid, resolve it before delegating. If all selected sources are
+empty, report no changes; an empty committed diff alone does not mean local
+work is empty.
 
 ### 2. Identify the spec source
 
@@ -30,8 +43,9 @@ Look for the originating spec, in this order:
 
 1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via the workflow in `docs/agents/issue-tracker.md`.
 2. A path the user passed as an argument.
-3. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
-4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
+3. The current user request and confirmed session decisions when they define the task.
+4. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
+5. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
 
 ### 3. Identify the standards sources
 

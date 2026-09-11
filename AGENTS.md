@@ -50,7 +50,24 @@ Se os documentos e o código divergirem, não escolha silenciosamente um deles. 
 
 ## Skills do repositório
 
-Skills específicas do Nitivo devem ficar em `.agents/skills/` e ser versionadas. Revise instruções, referências e scripts de terceiros antes de adicioná-los. Não instale coleções completas quando apenas algumas skills forem necessárias.
+Skills do Nitivo ficam em `.agents/skills/` e são versionadas. Por decisão
+expressa do proprietário em 11 de setembro de 2026, manter as 37 skills da
+coleção local, mesmo as que ainda não são utilizadas. Revise instruções,
+referências e scripts de terceiros antes de incorporar ou atualizar skills.
+O inventário e as adaptações estão em [.agents/skills/README.md](.agents/skills/README.md).
+
+Ao usar uma skill, aplique as regras deste arquivo e o escopo autorizado na
+sessão; exemplos genéricos da coleção não substituem decisões do Nitivo.
+Disponibilidade de uma skill não autoriza executar seu workflow, instalar suas
+dependências ou iniciar outros tickets. Preserve acordos já confirmados ao
+aplicar etapas de entrevista ou aprovação. Aprendizado e escrita continuam
+disponíveis quando solicitados, sem virar condição para entregar o produto.
+
+Referências a outras skills significam ler o `SKILL.md` correspondente nesta
+coleção, usando os recursos disponíveis na sessão; não dependem de uma ferramenta
+chamada `Skill`. Confira a disponibilidade de CLIs antes de usá-las. Fluxos de
+issues seguem `docs/agents/issue-tracker.md` e `docs/agents/triage-labels.md`;
+instalação de skills não autoriza publicar issues, comentários, PRs ou mensagens.
 
 ## Agent skills
 
