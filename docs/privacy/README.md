@@ -63,3 +63,22 @@ o novo canal precisam ser revalidados com o responsável da lavação usando um
 contato já registrado; se a solicitação vier do próprio responsável, a conferência
 usa os registros da entrada assistida e contato direto. Sem evidência suficiente,
 o acesso permanece bloqueado e o operador encaminha o caso ao suporte do Nitivo.
+
+## Reserva pública implementada (ticket 6)
+
+Nome, telefone informado e placa são coletados para organizar o atendimento e
+permitir contato operacional da lavação. Não há verificação automática do telefone
+nem reaproveitamento de cadastros privados por esses dados. A equipe com vínculo
+ativo no tenant acessa esses dados na agenda; o comprovante público contém apenas
+referência e informações do serviço/horário, sem dados de outros clientes.
+
+A tentativa aleatória e seu conteúdo ficam em memória no navegador para reenvio
+em até 15 minutos; o banco conserva hashes para impedir duplicação, sem guardar a
+chave bruta. Não existe busca pública de reservas. Respostas da reserva e agenda
+não devem ser armazenadas em cache. Erros de persistência da reserva são traduzidos
+para uma resposta genérica, evitando argumentos pessoais do ORM nos logs HTTP.
+
+O limite de tentativas usa hash do IP e janela de 15 minutos; entradas dessa
+finalidade com mais de 24 horas são descartadas oportunisticamente. Retenção dos
+cadastros e reservas, atendimento a titulares e revisão jurídica/operacional
+continuam pendentes dos tickets próprios antes de dados reais.

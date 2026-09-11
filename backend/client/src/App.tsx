@@ -1,3 +1,5 @@
+import { api, errorMessage, formatMoney, formatTime } from './api';
+import { BookingForm, TeamAgenda } from './Booking';
 import { FormEvent, useEffect, useState } from 'react';
 
 type Membership = {
@@ -129,6 +131,7 @@ export function App() {
     />
   ) : (
     <EmployeeHome
+      key={membership.carWashId}
       session={session}
       membership={membership}
       onSelectCarWash={setSelectedCarWashId}
@@ -142,6 +145,10 @@ function PublicCarWash({ slug }: { slug: string }) {
   const [message, setMessage] = useState('Carregando…');
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [availabilityMessage, setAvailabilityMessage] = useState('');
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [queriedService, setQueriedService] = useState('');
+  const [consulting, setConsulting] = useState(false);
+  const [bookingStarted, setBookingStarted] = useState(false);
   useEffect(() => {
     void api<PublicCarWashPage>(
       `/api/public/car-washes/${encodeURIComponent(slug)}`,
@@ -156,6 +163,9 @@ function PublicCarWash({ slug }: { slug: string }) {
   async function consultAvailability(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    setSelectedSlot(null);
+    setAvailability(null);
+    setConsulting(true);
     const params = new URLSearchParams({
       serviceId: String(form.get('serviceId')),
       date: String(form.get('date')),
@@ -165,6 +175,7 @@ function PublicCarWash({ slug }: { slug: string }) {
         `/api/public/car-washes/${encodeURIComponent(slug)}/availability?${params}`,
       );
       setAvailability(result);
+      setQueriedService(String(form.get('serviceId')));
       setAvailabilityMessage(
         result.slots.length === 0
           ? 'Nenhum horário disponível nesta data.'
@@ -173,6 +184,8 @@ function PublicCarWash({ slug }: { slug: string }) {
     } catch (error) {
       setAvailability(null);
       setAvailabilityMessage(errorMessage(error));
+    } finally {
+      setConsulting(false);
     }
   }
   if (!page)
@@ -220,33 +233,62 @@ function PublicCarWash({ slug }: { slug: string }) {
         <section className="panel availability-panel">
           <h2>Consultar horários</h2>
           <form onSubmit={consultAvailability}>
-            <label>
-              Serviço para agendar
-              <select name="serviceId" required defaultValue="">
-                <option value="" disabled>
-                  Selecione um serviço
-                </option>
-                {page.services.map((service) => (
-                  <option key={service.id} value={service.id}>
-                    {service.name} — {service.durationInMinutes} min
+            <fieldset
+              disabled={consulting || bookingStarted}
+              onChange={() => {
+                setAvailability(null);
+                setSelectedSlot(null);
+              }}
+            >
+              <label>
+                Serviço para agendar
+                <select name="serviceId" required defaultValue="">
+                  <option value="" disabled>
+                    Selecione um serviço
                   </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Data do atendimento
-              <input name="date" type="date" required />
-            </label>
-            <button type="submit">Consultar horários</button>
+                  {page.services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} — {service.durationInMinutes} min
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Data do atendimento
+                <input name="date" type="date" required />
+              </label>
+              <button type="submit">Consultar horários</button>
+            </fieldset>
           </form>
           {availability?.slots.length ? (
             <div className="slot-list" aria-label="Horários disponíveis">
               {availability.slots.map((slot) => (
-                <button key={slot.startsAt} type="button" className="slot">
+                <button
+                  key={slot.startsAt}
+                  type="button"
+                  className="slot"
+                  disabled={bookingStarted}
+                  aria-pressed={selectedSlot === slot.startsAt}
+                  onClick={() => setSelectedSlot(slot.startsAt)}
+                >
                   {formatTime(slot.startsAt, availability.timezone)}
                 </button>
               ))}
             </div>
+          ) : null}
+          {selectedSlot && availability ? (
+            <BookingForm
+              key={`${queriedService}:${selectedSlot}`}
+              slug={slug}
+              serviceId={queriedService}
+              startsAt={selectedSlot}
+              timezone={availability.timezone}
+              service={page.services.find(
+                (service) => service.id === queriedService,
+              )!}
+              onStarted={() => setBookingStarted(true)}
+              onRejected={() => setBookingStarted(false)}
+            />
           ) : null}
           <Status message={availabilityMessage} />
         </section>
@@ -503,11 +545,9 @@ function EmployeeHome({
       <section className="intro">
         <span className="eyebrow">Equipe</span>
         <h1>Acesso de funcionário</h1>
-        <p>
-          Seu acesso individual está ativo. A agenda será disponibilizada no
-          próximo incremento do piloto.
-        </p>
+        <p>Consulte os atendimentos da sua lavação.</p>
       </section>
+      <TeamAgenda carWashId={membership.carWashId} />
     </main>
   );
 }
@@ -696,6 +736,7 @@ function OwnerWorkspace({
           )}
         </section>
       </div>
+      <TeamAgenda carWashId={membership.carWashId} />
       <SchedulingManagement session={session} membership={membership} />
       <TeamManagement session={session} membership={membership} />
     </main>
@@ -1106,46 +1147,4 @@ function Status({ message }: { message: string }) {
       {message}
     </p>
   ) : null;
-}
-
-async function api<T = void>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json', ...init.headers },
-  });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as {
-      message?: string | string[];
-    };
-    const message = Array.isArray(body.message)
-      ? body.message.join('. ')
-      : body.message;
-    throw new Error(message ?? 'Não foi possível concluir a operação.');
-  }
-  return response.status === 204
-    ? (undefined as T)
-    : ((await response.json()) as T);
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : 'Não foi possível concluir a operação.';
-}
-
-function formatMoney(valueInCents: number) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(valueInCents / 100);
-}
-
-function formatTime(instant: string, timezone: string) {
-  return new Intl.DateTimeFormat('pt-BR', {
-    timeZone: timezone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(new Date(instant));
 }

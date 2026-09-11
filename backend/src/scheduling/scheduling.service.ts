@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import {
   BadRequestException,
   ConflictException,
@@ -65,6 +66,7 @@ export class SchedulingService {
       }
     }
     await this.prisma.$transaction(async (transaction) => {
+      await lockScheduling(transaction, carWashId);
       const carWash = await transaction.carWash.findUniqueOrThrow({
         where: { id: carWashId },
         select: { timezone: true },
@@ -114,6 +116,7 @@ export class SchedulingService {
 
   async updateBox(carWashId: string, boxId: string, input: UpdateBoxDto) {
     return this.prisma.$transaction(async (transaction) => {
+      await lockScheduling(transaction, carWashId);
       const box = await transaction.box.findUnique({
         where: { id_carWashId: { id: boxId, carWashId } },
         select: { id: true, name: true, active: true },
@@ -139,8 +142,12 @@ export class SchedulingService {
     });
   }
 
-  async getAvailability(slug: string, query: AvailabilityQueryDto) {
-    const carWash = await this.prisma.carWash.findUnique({
+  async getAvailability(
+    slug: string,
+    query: AvailabilityQueryDto,
+    database: Prisma.TransactionClient = this.prisma,
+  ) {
+    const carWash = await database.carWash.findUnique({
       where: { slug },
       select: {
         id: true,
@@ -194,7 +201,7 @@ export class SchedulingService {
       hours.closesAtMinute,
       carWash.timezone,
     );
-    const occupied = await this.prisma.appointment.findMany({
+    const occupied = await database.appointment.findMany({
       where: {
         carWashId: carWash.id,
         status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
@@ -252,12 +259,16 @@ function weekday(date: string) {
   return new Date(`${date}T12:00:00.000Z`).getUTCDay();
 }
 
-function localDate(value: Date, timezone: string) {
+export function localDate(value: Date, timezone: string) {
   const parts = dateParts(value, timezone);
   return `${parts.year}-${twoDigits(parts.month)}-${twoDigits(parts.day)}`;
 }
 
-function localDateTime(date: string, minuteOfDay: number, timezone: string) {
+export function localDateTime(
+  date: string,
+  minuteOfDay: number,
+  timezone: string,
+) {
   const base = new Date(`${date}T00:00:00.000Z`);
   base.setUTCMinutes(minuteOfDay);
   const desired = {
@@ -310,13 +321,13 @@ function dateParts(value: Date, timezone: string) {
   };
 }
 
-function addDays(date: string, days: number) {
+export function addDays(date: string, days: number) {
   const value = new Date(`${date}T00:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
 }
 
-function isRealDate(date: string) {
+export function isRealDate(date: string) {
   const parsed = new Date(`${date}T00:00:00.000Z`);
   return (
     !Number.isNaN(parsed.getTime()) &&
@@ -368,4 +379,12 @@ function schedulingConflict(
       endsAt: appointment.endsAt.toISOString(),
     })),
   });
+}
+
+// A mesma trava serializa confirmação e alterações que podem retirar disponibilidade.
+export async function lockScheduling(
+  transaction: Prisma.TransactionClient,
+  carWashId: string,
+) {
+  await transaction.$queryRaw`SELECT "id" FROM "CarWash" WHERE "id" = ${carWashId} FOR UPDATE`;
 }

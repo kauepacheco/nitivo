@@ -4,15 +4,15 @@
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os cinco primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os seis primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-Ticket 5 do piloto, [issue #6](https://github.com/kauepacheco/nitivo/issues/6):
-configuração de boxes, expediente semanal e políticas pelo proprietário, com
-consulta pública de horários disponíveis para um serviço.
+Ticket 6 do piloto, [issue #7](https://github.com/kauepacheco/nitivo/issues/7):
+confirmação da reserva pública com comprovante e consulta da agenda diária e dos
+próximos atendimentos por proprietários e funcionários.
 
 ## Concluído
 
@@ -88,41 +88,55 @@ consulta pública de horários disponíveis para um serviço.
 - jornada móvel permite ao proprietário configurar capacidade e expediente e ao
   cliente consultar horários para o serviço e a data escolhidos.
 
+- cliente confirma reserva pública com nome, telefone e placa, recebe comprovante
+  e a equipe consulta a agenda diária e os próximos atendimentos no fuso local;
+- confirmação escolhe box automaticamente, preserva nome/preço/duração do serviço
+  e registra origem pública e instante, sem inventar identidade autenticada;
+- transação grava cliente, veículo e reserva integralmente; chaves compostas e
+  exclusion constraint PostgreSQL impedem relações cruzadas e sobreposição;
+- reenvio idêntico em até 15 minutos retorna a mesma referência; limite atômico
+  de 20 tentativas por IP em 15 minutos inclui erros e sucessos;
+- mudanças de expediente ou desativação de box disputam a mesma trava da
+  confirmação e não invalidam silenciosamente reservas existentes;
+- agenda exige vínculo ativo OWNER/EMPLOYEE; formulário não consulta nem reutiliza
+  cadastros privados e não oferece busca pública posterior;
+- validação completa: lint, tipos e build passaram; 1 teste unitário, 40 HTTP com
+  PostgreSQL e 10 de navegador passaram, incluindo perda de resposta após gravar
+  reserva, reenvio, comprovante e agenda no celular;
+- revisão local nos eixos Standards e Spec sem pendências: nenhuma violação
+  documentada ou divergência de escopo; duplicação de fixture apontada e removida.
+
 ## Objetivo atual
 
-Alinhamento da coleção de skills concluído: por solicitação expressa do
-proprietário, as 37 skills locais foram incorporadas, substituindo a seleção de
-oito. Instruções, referências, metadados e scripts revisados; inventário, lock e
-regras do AGENTS.md alinhados. As 37 skills passaram pelo validador local,
-metadados e links foram conferidos, e seis testes dos scripts passaram. Detalhes em
-[Skills do Nitivo](../.agents/skills/README.md). Nenhum hook, dependência opcional,
-serviço ou workflow da coleção foi ativado por essa incorporação.
+Ticket 6 implementado e validado localmente, por solicitação do proprietário em
+11 de setembro de 2026. Branch: `feat/7-reserva-publica-agenda`. Issue #7 consultada
+no GitHub: aberta, rótulo ready-for-agent, sem comentários. Nenhuma publicação,
+alteração da issue ou push foi realizada.
 
-A consulta ao remoto nesta sessão falhou por autenticação SSH. HEAD e a referência
-local origin/main coincidiam antes desta mudança, mas isso não comprova o estado
-atual no GitHub. A sincronização remota permanece sem confirmação; nenhum push
-foi realizado.
+A coleção de 37 skills permanece preservada conforme decisão do proprietário;
+detalhes em [Skills do Nitivo](../.agents/skills/README.md).
 
-O ticket 5 está implementado localmente e validado com dados fictícios.
 O produto ainda não está pronto para demonstração remota ou piloto: faltam os
 incrementos seguintes, implantação e critérios operacionais e de privacidade.
+Somente dados fictícios foram utilizados. As bibliotecas que faltavam ao Chromium
+foram extraídas em `/tmp` para a validação, sem instalação no sistema.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação o ticket 6,
-[issue #7](https://github.com/kauepacheco/nitivo/issues/7): confirmação da
-reserva pública e exibição na agenda da equipe.
+Implementar em nova solicitação o ticket 7,
+[issue #8](https://github.com/kauepacheco/nitivo/issues/8): abrir o WhatsApp com o
+resumo da reserva e orientar pedidos de alteração.
 
 ## Pendências de execução
 
-- aguardar nova solicitação antes de iniciar o ticket 6;
+- aguardar nova solicitação antes de iniciar o ticket 7;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar os tickets 6 a 22 em sequência;
+- implementar e verificar os tickets 7 a 22 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
-- sincronizar os commits locais com o GitHub após restabelecer o acesso SSH e
-  receber solicitação explícita de push.
+- sincronizar commits locais com o GitHub após solicitação explícita de push;
+  acesso de escrita por SSH não foi revalidado nesta tarefa.
 
 ## Orientação para uma nova sessão
 

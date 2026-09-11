@@ -112,7 +112,9 @@ test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular',
   await page.getByRole('button', { name: 'Cadastrar serviço' }).click();
 
   await expect(page.getByText('Serviço cadastrado.')).toBeVisible();
-  await expect(page.getByText('Lavagem completa', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Lavagem completa', { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText('90 min · Ativo')).toBeVisible();
   await expect(page.getByText('R$ 75,00')).toBeVisible();
 });
@@ -205,6 +207,41 @@ test('proprietário configura capacidade e cliente consulta horários no celular
   await page.getByLabel('Data do atendimento').fill(date);
   await page.getByRole('button', { name: 'Consultar horários' }).click();
   await expect(page.getByRole('button', { name: '08:00' })).toBeVisible();
+  await page.getByRole('button', { name: '08:00' }).click();
+  await page.getByLabel('Seu nome').fill('Cliente Fictício');
+  await page.getByLabel('Telefone com DDD').fill('11999990001');
+  await page.getByLabel('Placa do veículo').fill('ABC1D23');
+  await page.route(
+    '**/api/public/car-washes/lavacao-horizonte/appointments',
+    async (route) => {
+      await route.fetch();
+      await route.abort('connectionreset');
+    },
+    { times: 1 },
+  );
+  await page.getByRole('button', { name: 'Confirmar reserva' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Tentar novamente' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Tentar novamente' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Reserva confirmada' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Sua reserva está confirmada mesmo sem enviar mensagem.'),
+  ).toBeVisible();
+  await page.goto(baseUrl);
+  await page.getByLabel('Dia da agenda').fill(date);
+  await expect(
+    page.getByLabel('Agenda diária').getByText('Cliente Fictício'),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Agenda diária').getByText('ABC1D23', { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Próximos atendimentos').getByText('Cliente Fictício'),
+  ).toBeVisible();
+  await expect(page.getByLabel('Agenda diária').locator('li')).toHaveCount(1);
 });
 
 const weekdayLabels = [

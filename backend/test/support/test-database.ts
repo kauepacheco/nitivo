@@ -49,7 +49,7 @@ export async function startTestDatabase(): Promise<TestDatabase> {
       await client.connect();
       try {
         await client.query(
-          'TRUNCATE TABLE "Appointment", "WeeklyOpeningHour", "Box", "ServiceOffering", "Session", "AuthenticationThrottle", "EmployeeInvitation", "AccessToken", "Membership", "User", "CarWash" CASCADE',
+          'TRUNCATE TABLE "Appointment", "Vehicle", "Customer", "WeeklyOpeningHour", "Box", "ServiceOffering", "Session", "AuthenticationThrottle", "EmployeeInvitation", "AccessToken", "Membership", "User", "CarWash" CASCADE',
         );
       } finally {
         await client.end();

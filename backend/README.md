@@ -1,12 +1,14 @@
 # Aplicação do Nitivo
 
 Monólito modular do Nitivo: API NestJS, interface React/Vite e PostgreSQL. Os
-cinco primeiros incrementos permitem ao operador provisionar uma lavação, ao
+seis primeiros incrementos permitem ao operador provisionar uma lavação, ao
 proprietário definir sua senha, administrar um catálogo persistido, convidar ou
 revogar funcionários, recuperar o acesso da equipe de forma assistida e publicar
 os serviços ativos com preço, duração e contato operacional. O proprietário
 também configura boxes, expediente semanal e políticas; o cliente consulta os
-horários disponíveis para um serviço no fuso da lavação.
+horários disponíveis para um serviço no fuso da lavação, confirma a reserva e
+recebe um comprovante. Proprietários e funcionários consultam a agenda diária
+e os próximos atendimentos.
 
 ## Requisitos
 
@@ -139,6 +141,46 @@ de 12 horas; logout e definição de uma nova senha revogam sessões persistidas
 Conforme a implantação aprovada, a API confia em exatamente um proxy reverso para
 identificar a origem usada nos limites persistidos de tentativas.
 
+## Reserva pública e agenda
+
+O cliente seleciona um horário, informa nome, telefone com DDD e placa e confirma
+sem conta. O comprovante aparece na mesma página e deve ser guardado antes de
+fechá-la; não existe consulta pública posterior por identificador, telefone ou
+placa. O botão com resumo para WhatsApp pertence ao próximo ticket (#8).
+
+- `POST /api/public/car-washes/:slug/appointments`: recebe `attemptId` (UUID v4),
+  `serviceId`, `startsAt` (UTC retornado pela disponibilidade), `name`, `phone`
+  (10–15 dígitos) e `plate` (padrão brasileiro antigo ou Mercosul).
+- Cada tentativa usa um cliente e um veículo novos, isolados na lavação; dados
+  não verificados nunca recuperam cadastros privados existentes.
+- O mesmo corpo e UUID podem ser reenviados em até 15 minutos após a criação;
+  retornam a mesma referência. Uma chave já usada com outro corpo ou após essa
+  janela recebe 409. A interface mantém a tentativa apenas em memória e bloqueia
+  sua edição em falha de rede, permitindo repetir sem duplicar a reserva.
+- A API limita atomicamente a 20 tentativas por IP em 15 minutos, incluindo
+  erros de validação e sucessos. Persiste somente hash do IP; registros dessa
+  finalidade com mais de 24 horas são removidos na próxima tentativa.
+- `GET /api/car-washes/:carWashId/appointments?date=AAAA-MM-DD`: exige sessão e
+  vínculo ativo OWNER/EMPLOYEE. Retorna o dia local solicitado (hoje por padrão)
+  e até 20 próximos confirmados a partir de agora, ordenados pelo início.
+  Comprovante e agenda usam `Cache-Control: no-store`.
+
+Confirmação e mudanças de expediente/desativação de box obtêm a mesma trava
+`FOR UPDATE` na lavação antes de consultar disponibilidade/conflitos. Cliente,
+veículo e reserva são gravados em uma transação. A migration instala `btree_gist`
+e uma exclusion constraint de intervalos `[início, fim)` para reservas
+CONFIRMED/IN_PROGRESS do mesmo box; término e início adjacentes são permitidos.
+A conta que aplica migrations precisa poder criar essa extensão. Sobreposições
+preexistentes fazem a migration falhar e exigem conferência, sem apagar reservas.
+
+As chaves estrangeiras compostas impedem relações entre tenants e entre um
+veículo e cliente incompatíveis. Nome/preço/duração do serviço ficam na reserva;
+a criação registra `PUBLIC` e seu instante, sem atribuir identidade autenticada.
+Ocupações anteriores do ticket 5 permanecem `LEGACY`, sem inventar cliente ou
+veículo. Novas reservas públicas exigem ambos no banco. Futuras operações de
+encaixe, reagendamento e alterações de catálogo devem respeitar o mesmo protocolo
+de concorrência antes de serem disponibilizadas.
+
 ## Verificações
 
 ```bash
@@ -166,4 +208,5 @@ escopo dos incrementos está nas issues
 [#3](https://github.com/kauepacheco/nitivo/issues/3) e
 [#4](https://github.com/kauepacheco/nitivo/issues/4),
 [#5](https://github.com/kauepacheco/nitivo/issues/5) e
-[#6](https://github.com/kauepacheco/nitivo/issues/6).
+[#6](https://github.com/kauepacheco/nitivo/issues/6) e
+[#7](https://github.com/kauepacheco/nitivo/issues/7).

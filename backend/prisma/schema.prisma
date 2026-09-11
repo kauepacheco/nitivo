@@ -36,6 +36,8 @@ model CarWash {
   services                    ServiceOffering[]
   employeeInvitations         EmployeeInvitation[]
   boxes                       Box[]
+  customers                   Customer[]
+  vehicles                    Vehicle[]
   weeklyHours                 WeeklyOpeningHour[]
 }
 
@@ -61,9 +63,40 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+model Customer {
+  id           String        @id @default(cuid())
+  carWashId    String
+  name         String
+  phone        String
+  carWash      CarWash       @relation(fields: [carWashId], references: [id], onDelete: Restrict)
+  vehicles     Vehicle[]
+  appointments Appointment[]
+
+  @@unique([id, carWashId])
+}
+
+model Vehicle {
+  id           String        @id @default(cuid())
+  carWashId    String
+  customerId   String
+  plate        String
+  carWash      CarWash       @relation(fields: [carWashId], references: [id], onDelete: Restrict)
+  customer     Customer      @relation(fields: [customerId, carWashId], references: [id, carWashId], onDelete: Restrict)
+  appointments Appointment[]
+
+  @@unique([id, customerId, carWashId])
+}
+
 model Appointment {
   id                       String            @id @default(cuid())
   carWashId                String
+  customerId               String?
+  vehicleId                String?
+  origin                   String            @default("LEGACY")
+  attemptHash              String?
+  requestHash              String?
+  customer                 Customer?         @relation(fields: [customerId, carWashId], references: [id, carWashId], onDelete: Restrict)
+  vehicle                  Vehicle?          @relation(fields: [vehicleId, customerId, carWashId], references: [id, customerId, carWashId], onDelete: Restrict)
   boxId                    String
   serviceOfferingId        String
   startsAt                 DateTime          @db.Timestamptz(3)
@@ -76,6 +109,7 @@ model Appointment {
   box                      Box               @relation(fields: [boxId, carWashId], references: [id, carWashId], onDelete: Restrict)
   serviceOffering          ServiceOffering   @relation(fields: [serviceOfferingId, carWashId], references: [id, carWashId], onDelete: Restrict)
 
+  @@unique([carWashId, attemptHash])
   @@index([carWashId, startsAt, endsAt])
   @@index([boxId, startsAt, endsAt])
 }
