@@ -69,6 +69,8 @@ export class AgendaQueryDto {
 export class BookingReceiptDto {
   @ApiProperty() id!: string;
   @ApiProperty() carWashName!: string;
+  @ApiProperty({ example: '5511999990001', nullable: true })
+  operationalContactPhone!: string | null;
   @ApiProperty() timezone!: string;
   @ApiProperty() changeNoticeMinutes!: number;
   @ApiProperty() serviceName!: string;

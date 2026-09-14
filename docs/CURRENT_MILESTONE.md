@@ -1,18 +1,18 @@
 # Marco atual
 
-Última atualização: 11 de setembro de 2026.
+Última atualização: 14 de setembro de 2026.
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os seis primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os sete primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-Ticket 6 do piloto, [issue #7](https://github.com/kauepacheco/nitivo/issues/7):
-confirmação da reserva pública com comprovante e consulta da agenda diária e dos
-próximos atendimentos por proprietários e funcionários.
+Ticket 7 do piloto, [issue #8](https://github.com/kauepacheco/nitivo/issues/8):
+abrir o WhatsApp com o resumo mínimo da reserva e orientar pedidos de
+cancelamento e reagendamento.
 
 ## Concluído
 
@@ -105,13 +105,21 @@ próximos atendimentos por proprietários e funcionários.
   reserva, reenvio, comprovante e agenda no celular;
 - revisão local nos eixos Standards e Spec sem pendências: nenhuma violação
   documentada ou divergência de escopo; duplicação de fixture apontada e removida.
+- comprovante oferece conversa no telefone operacional da lavação com nome da
+  lavação, serviço, data, horário e referência, sem expor os dados informados do
+  cliente no texto;
+- interface deixa explícito que abrir a conversa não envia mensagem nem verifica
+  o telefone e que a reserva só muda depois do registro feito pela equipe;
+- reserva continua confirmada e visível na agenda sem abertura ou envio pelo
+  WhatsApp; teste de navegador valida o destino e o texto usando dados fictícios,
+  sem disparar mensagem real.
 
 ## Objetivo atual
 
-Ticket 6 implementado e validado localmente, por solicitação do proprietário em
-11 de setembro de 2026. Branch: `feat/7-reserva-publica-agenda`. Issue #7 consultada
-no GitHub: aberta, rótulo ready-for-agent, sem comentários. Nenhuma publicação,
-alteração da issue ou push foi realizada.
+Ticket 7 implementado e validado localmente, por solicitação do proprietário em
+14 de setembro de 2026. Branch: `feat/8-whatsapp-resumo-politica`. A especificação
+local da issue #8 foi conferida; a consulta direta ao GitHub não ficou disponível
+neste ambiente. Nenhuma publicação, alteração da issue ou push foi realizada.
 
 A coleção de 37 skills permanece preservada conforme decisão do proprietário;
 detalhes em [Skills do Nitivo](../.agents/skills/README.md).
@@ -123,16 +131,16 @@ foram extraídas em `/tmp` para a validação, sem instalação no sistema.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação o ticket 7,
-[issue #8](https://github.com/kauepacheco/nitivo/issues/8): abrir o WhatsApp com o
-resumo da reserva e orientar pedidos de alteração.
+Implementar em nova solicitação o ticket 8,
+[issue #9](https://github.com/kauepacheco/nitivo/issues/9): editar e desativar
+serviços preservando os dados históricos das reservas.
 
 ## Pendências de execução
 
-- aguardar nova solicitação antes de iniciar o ticket 7;
+- aguardar nova solicitação antes de iniciar o ticket 8;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar os tickets 7 a 22 em sequência;
+- implementar e verificar os tickets 8 a 22 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 - sincronizar commits locais com o GitHub após solicitação explícita de push;

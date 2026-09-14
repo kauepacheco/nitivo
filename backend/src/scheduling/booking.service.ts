@@ -242,11 +242,17 @@ function receipt(
     serviceDurationInMinutes: number;
     status: string;
   },
-  carWash: { name: string; timezone: string; changeNoticeMinutes: number },
+  carWash: {
+    name: string;
+    operationalContactPhone: string | null;
+    timezone: string;
+    changeNoticeMinutes: number;
+  },
 ) {
   return {
     id: appointment.id,
     carWashName: carWash.name,
+    operationalContactPhone: carWash.operationalContactPhone,
     timezone: carWash.timezone,
     changeNoticeMinutes: carWash.changeNoticeMinutes,
     startsAt: appointment.startsAt.toISOString(),

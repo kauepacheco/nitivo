@@ -184,6 +184,10 @@ test('proprietário configura capacidade e cliente consulta horários no celular
   await page.getByLabel('Senha').fill('Senha-ficticia-123!');
   await page.getByRole('button', { name: 'Entrar' }).click();
 
+  await page.getByLabel('Telefone operacional com DDD').fill('(11) 99999-0001');
+  await page
+    .getByRole('button', { name: 'Salvar informações públicas' })
+    .click();
   await page.getByLabel('Nome', { exact: true }).fill('Lavagem completa');
   await page.getByLabel('Preço (R$)').fill('75.00');
   await page.getByLabel('Duração (min)').fill('60');
@@ -229,6 +233,26 @@ test('proprietário configura capacidade e cliente consulta horários no celular
   ).toBeVisible();
   await expect(
     page.getByText('Sua reserva está confirmada mesmo sem enviar mensagem.'),
+  ).toBeVisible();
+  const reference = await page.locator('.booking-reference').textContent();
+  const localDate = `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
+  const message = [
+    'Olá! Tenho uma reserva confirmada na Lavação Horizonte.',
+    'Serviço: Lavagem completa',
+    `Data e horário: ${localDate} às 08:00`,
+    `Referência: ${reference}`,
+    'Gostaria de falar com a equipe sobre essa reserva.',
+  ].join('\n');
+  await expect(
+    page.getByRole('link', { name: 'Abrir conversa no WhatsApp' }),
+  ).toHaveAttribute(
+    'href',
+    `https://wa.me/5511999990001?text=${encodeURIComponent(message)}`,
+  );
+  await expect(
+    page.getByText(
+      'Abrir a conversa não envia a mensagem nem verifica seu telefone.',
+    ),
   ).toBeVisible();
   await page.goto(baseUrl);
   await page.getByLabel('Dia da agenda').fill(date);

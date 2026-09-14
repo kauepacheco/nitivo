@@ -273,6 +273,7 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     const receipt = await fixture.book().expect(201);
     expect(receipt.body).toMatchObject({
       status: 'CONFIRMED',
+      operationalContactPhone: '5511999990001',
       serviceName: 'Lavagem completa',
       servicePriceInCents: 7500,
       serviceDurationInMinutes: 60,
@@ -297,6 +298,11 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     jest
       .spyOn(Date, 'now')
       .mockReturnValue(new Date('2026-09-10T12:00:00Z').getTime());
+    await owner.agent
+      .patch('/api/car-washes/lavacao-sol/public-profile')
+      .set('x-csrf-token', owner.csrfToken)
+      .send({ operationalContactPhone: '5511999990001' })
+      .expect(200);
     const service = await owner.agent
       .post('/api/car-washes/lavacao-sol/services')
       .set('x-csrf-token', owner.csrfToken)

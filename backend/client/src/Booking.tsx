@@ -4,6 +4,7 @@ import { ApiError, api, errorMessage, formatMoney, formatTime } from './api';
 type Receipt = {
   id: string;
   carWashName: string;
+  operationalContactPhone: string | null;
   timezone: string;
   changeNoticeMinutes: number;
   serviceName: string;
@@ -94,7 +95,10 @@ export function BookingForm({
       setPending(false);
     }
   }
-  if (receipt)
+  if (receipt) {
+    const whatsappHref = receipt.operationalContactPhone
+      ? whatsappLink(receipt, receipt.operationalContactPhone)
+      : null;
     return (
       <section aria-label="Comprovante" className="booking-receipt">
         <h2>Reserva confirmada</h2>
@@ -121,10 +125,24 @@ export function BookingForm({
         <p>
           Para cancelar ou reagendar, contate a lavação pelo WhatsApp com pelo
           menos {receipt.changeNoticeMinutes} minutos de antecedência. A equipe
-          confere o pedido e registra a alteração.
+          confere o pedido e registra a alteração no Nitivo. A reserva só muda
+          depois desse registro.
         </p>
+        {whatsappHref ? (
+          <>
+            <a href={whatsappHref} target="_blank" rel="noreferrer">
+              Abrir conversa no WhatsApp
+            </a>
+            <p>
+              Abrir a conversa não envia a mensagem nem verifica seu telefone.
+            </p>
+          </>
+        ) : (
+          <p>O contato da lavação pelo WhatsApp não está disponível.</p>
+        )}
       </section>
     );
+  }
   return (
     <section aria-label="Confirmar atendimento">
       <h2>Confirmar atendimento</h2>
@@ -312,4 +330,15 @@ function formatDate(instant: string, timezone: string) {
     timeZone: timezone,
     dateStyle: 'short',
   }).format(new Date(instant));
+}
+
+function whatsappLink(receipt: Receipt, operationalContactPhone: string) {
+  const message = [
+    `Olá! Tenho uma reserva confirmada na ${receipt.carWashName}.`,
+    `Serviço: ${receipt.serviceName}`,
+    `Data e horário: ${formatDate(receipt.startsAt, receipt.timezone)} às ${formatTime(receipt.startsAt, receipt.timezone)}`,
+    `Referência: ${receipt.id}`,
+    'Gostaria de falar com a equipe sobre essa reserva.',
+  ].join('\n');
+  return `https://wa.me/${operationalContactPhone}?text=${encodeURIComponent(message)}`;
 }

@@ -64,7 +64,7 @@ contato já registrado; se a solicitação vier do próprio responsável, a conf
 usa os registros da entrada assistida e contato direto. Sem evidência suficiente,
 o acesso permanece bloqueado e o operador encaminha o caso ao suporte do Nitivo.
 
-## Reserva pública implementada (ticket 6)
+## Reserva pública e contato voluntário implementados (tickets 6 e 7)
 
 Nome, telefone informado e placa são coletados para organizar o atendimento e
 permitir contato operacional da lavação. Não há verificação automática do telefone
@@ -82,3 +82,10 @@ O limite de tentativas usa hash do IP e janela de 15 minutos; entradas dessa
 finalidade com mais de 24 horas são descartadas oportunisticamente. Retenção dos
 cadastros e reservas, atendimento a titulares e revisão jurídica/operacional
 continuam pendentes dos tickets próprios antes de dados reais.
+
+O link de WhatsApp usa somente o telefone operacional da lavação e um resumo com
+nome da lavação, serviço, data, horário e referência do comprovante. Não inclui
+nome, telefone ou placa do cliente, credenciais ou dados de terceiros. O Nitivo
+não envia nem lê a mensagem e não trata a abertura da conversa como comprovação
+de envio, entrega, leitura ou posse do telefone informado. A reserva permanece
+confirmada até uma alteração ser registrada pela equipe.
