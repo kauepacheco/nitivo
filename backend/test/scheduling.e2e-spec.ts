@@ -401,29 +401,65 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     }
   });
 
-  it.each(['hours', 'box'] as const)(
+  it.each(['hours', 'box', 'service'] as const)(
     'serializa reserva contra retirada de disponibilidade: %s',
     async (change) => {
       const fixture = await bookingFixture();
-      const mutation =
-        change === 'hours'
-          ? fixture.owner.agent
-              .put('/api/car-washes/lavacao-sol/scheduling-settings')
-              .set('x-csrf-token', fixture.owner.csrfToken)
-              .send(defaultSettings([]))
-          : fixture.owner.agent
-              .patch(`/api/car-washes/lavacao-sol/boxes/${fixture.boxes[0]}`)
-              .set('x-csrf-token', fixture.owner.csrfToken)
-              .send({ active: false });
-      const [booking, settings] = await Promise.all([fixture.book(), mutation]);
-      expect([
+      const mutations = {
+        hours: () =>
+          fixture.owner.agent
+            .put('/api/car-washes/lavacao-sol/scheduling-settings')
+            .set('x-csrf-token', fixture.owner.csrfToken)
+            .send(defaultSettings([])),
+        box: () =>
+          fixture.owner.agent
+            .patch(`/api/car-washes/lavacao-sol/boxes/${fixture.boxes[0]}`)
+            .set('x-csrf-token', fixture.owner.csrfToken)
+            .send({ active: false }),
+        service: () =>
+          fixture.owner.agent
+            .patch(
+              `/api/car-washes/lavacao-sol/services/${fixture.input.serviceId}`,
+            )
+            .set('x-csrf-token', fixture.owner.csrfToken)
+            .send({
+              name: 'Lavagem premium',
+              priceInCents: 9900,
+              durationInMinutes: 90,
+              active: false,
+            }),
+      };
+      const changeCanConflictWithExistingBooking = [
         [201, 409],
         [409, 200],
-      ]).toContainEqual([booking.status, settings.status]);
+      ];
+      const acceptedOutcomes = {
+        hours: changeCanConflictWithExistingBooking,
+        box: changeCanConflictWithExistingBooking,
+        service: [
+          [201, 200],
+          [404, 200],
+        ],
+      };
+      const [booking, mutationResponse] = await Promise.all([
+        fixture.book(),
+        mutations[change](),
+      ]);
+      expect(acceptedOutcomes[change]).toContainEqual([
+        booking.status,
+        mutationResponse.status,
+      ]);
       const agenda = await fixture.agenda().expect(200);
       expect(agenda.body.appointments).toHaveLength(
         booking.status === 201 ? 1 : 0,
       );
+      if (booking.status === 201) {
+        expect(agenda.body.appointments[0]).toMatchObject({
+          serviceName: 'Lavagem completa',
+          servicePriceInCents: 7500,
+          serviceDurationInMinutes: 60,
+        });
+      }
     },
   );
 
@@ -499,6 +535,67 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     } finally {
       await client.end();
     }
+  });
+
+  it('usa o catálogo atualizado em novas reservas e preserva a reserva existente', async () => {
+    const fixture = await bookingFixture();
+    await fixture.book().expect(201);
+
+    await fixture.owner.agent
+      .patch(`/api/car-washes/lavacao-sol/services/${fixture.input.serviceId}`)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        name: 'Lavagem premium',
+        priceInCents: 9900,
+        durationInMinutes: 90,
+        active: true,
+      })
+      .expect(200)
+      .expect({
+        id: fixture.input.serviceId,
+        name: 'Lavagem premium',
+        priceInCents: 9900,
+        durationInMinutes: 90,
+        active: true,
+      });
+
+    const newBooking = await fixture
+      .book({
+        ...fixture.input,
+        attemptId: randomUUID(),
+        startsAt: '2026-09-11T14:00:00.000Z',
+      })
+      .expect(201);
+    expect(newBooking.body).toMatchObject({
+      serviceName: 'Lavagem premium',
+      servicePriceInCents: 9900,
+      serviceDurationInMinutes: 90,
+      endsAt: '2026-09-11T15:30:00.000Z',
+    });
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.appointments[0]).toMatchObject({
+      serviceName: 'Lavagem completa',
+      servicePriceInCents: 7500,
+      serviceDurationInMinutes: 60,
+    });
+
+    await fixture.owner.agent
+      .patch(`/api/car-washes/lavacao-sol/services/${fixture.input.serviceId}`)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        name: 'Lavagem premium',
+        priceInCents: 9900,
+        durationInMinutes: 90,
+        active: false,
+      })
+      .expect(200);
+    await fixture
+      .book({
+        ...fixture.input,
+        attemptId: randomUUID(),
+        startsAt: '2026-09-11T16:00:00.000Z',
+      })
+      .expect(404);
   });
 
   it('PostgreSQL recusa sobreposição e associação a cliente de outra lavação', async () => {

@@ -63,7 +63,7 @@ async function waitForHealth(url: string, child: ChildProcess) {
   throw new Error('A aplicação não iniciou a tempo');
 }
 
-test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular', async ({
+test('proprietário cadastra, edita e desativa um serviço no celular', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -117,6 +117,28 @@ test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular',
   ).toBeVisible();
   await expect(page.getByText('90 min · Ativo')).toBeVisible();
   await expect(page.getByText('R$ 75,00')).toBeVisible();
+
+  const service = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Lavagem completa' });
+  await service.getByRole('button', { name: 'Editar' }).click();
+  await page.getByLabel('Nome do serviço').fill('Lavagem premium');
+  await page.getByLabel('Preço do serviço (R$)').fill('99.00');
+  await page.getByLabel('Duração do serviço (min)').fill('120');
+  await page.getByLabel('Serviço disponível').uncheck();
+  await page.getByRole('button', { name: 'Salvar alterações' }).click();
+
+  await expect(page.getByText('Serviço atualizado.')).toBeVisible();
+  const updatedService = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Lavagem premium' });
+  await expect(
+    updatedService.getByText('Lavagem premium', { exact: true }),
+  ).toBeVisible();
+  await expect(updatedService.getByText('120 min · Inativo')).toBeVisible();
+  await expect(updatedService.getByText('R$ 99,00')).toBeVisible();
+  await page.goto(`${baseUrl}/lavacoes/lavacao-horizonte`);
+  await expect(page.getByText('Lavagem premium')).not.toBeVisible();
 });
 
 test('cliente consulta serviços ativos e contato da lavação no celular', async ({

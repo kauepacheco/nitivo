@@ -290,6 +290,19 @@ header > div:last-child {
   white-space: nowrap;
   color: #154f37;
 }
+.service-editor {
+  width: 100%;
+  margin-top: 0;
+}
+.service-list li .service-actions,
+.service-list li .service-summary-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.service-list li .service-summary-actions {
+  align-items: flex-end;
+}
 .private-link {
   margin-top: 20px;
 }

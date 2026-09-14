@@ -19,7 +19,11 @@ import {
 import { CsrfGuard } from '../identity-access/csrf.guard';
 import { OwnerMembershipGuard } from '../identity-access/owner-membership.guard';
 import { SessionGuard } from '../identity-access/session.guard';
-import { CreateServiceOfferingDto } from './create-service-offering.dto';
+import {
+  CreateServiceOfferingDto,
+  ServiceOfferingDto,
+  UpdateServiceOfferingDto,
+} from './service-offering.dto';
 import { ServiceCatalogService } from './service-catalog.service';
 import {
   PublicCarWashPageDto,
@@ -43,12 +47,31 @@ export class ServiceCatalogController {
   @Post()
   @UseGuards(CsrfGuard)
   @ApiHeader({ name: 'x-csrf-token', required: true })
-  @ApiCreatedResponse({ description: 'Serviço cadastrado' })
+  @ApiCreatedResponse({
+    description: 'Serviço cadastrado',
+    type: ServiceOfferingDto,
+  })
   create(
     @Param('carWashId') carWashId: string,
     @Body() input: CreateServiceOfferingDto,
   ) {
     return this.serviceCatalog.create(carWashId, input);
+  }
+
+  @Patch(':serviceId')
+  @UseGuards(CsrfGuard)
+  @ApiHeader({ name: 'x-csrf-token', required: true })
+  @ApiOkResponse({
+    description: 'Serviço atualizado',
+    type: ServiceOfferingDto,
+  })
+  @ApiNotFoundResponse({ description: 'Serviço não encontrado' })
+  update(
+    @Param('carWashId') carWashId: string,
+    @Param('serviceId') serviceId: string,
+    @Body() input: UpdateServiceOfferingDto,
+  ) {
+    return this.serviceCatalog.update(carWashId, serviceId, input);
   }
 }
 

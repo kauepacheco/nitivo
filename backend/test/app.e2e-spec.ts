@@ -341,6 +341,17 @@ describe('Nitivo API (e2e)', () => {
         active: true,
       })
       .expect(404);
+
+    await employee.agent
+      .patch('/api/car-washes/lavacao-sol/services/servico-existente')
+      .set('x-csrf-token', employee.csrfToken)
+      .send({
+        name: 'Lavagem alterada',
+        priceInCents: 5000,
+        durationInMinutes: 60,
+        active: false,
+      })
+      .expect(404);
   });
 
   it('rejeita serviço sem nome útil, preço inteiro ou duração positiva', async () => {
@@ -380,6 +391,84 @@ describe('Nitivo API (e2e)', () => {
       .get('/api/car-washes/lavacao-sol/services')
       .expect(200)
       .expect([]);
+  });
+
+  it('valida a edição e não permite alterar serviço de outra lavação', async () => {
+    const ownerA = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+    const ownerB = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-lua',
+      email: 'dona.lua@example.test',
+    });
+    const service = await ownerA.agent
+      .post('/api/car-washes/lavacao-sol/services')
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({
+        name: 'Lavagem completa',
+        priceInCents: 7500,
+        durationInMinutes: 90,
+        active: true,
+      })
+      .expect(201);
+
+    await ownerA.agent
+      .patch(`/api/car-washes/lavacao-sol/services/${service.body.id}`)
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({
+        name: 'Lavagem completa',
+        priceInCents: 75.5,
+        durationInMinutes: 90,
+        active: true,
+      })
+      .expect(400);
+    await ownerB.agent
+      .patch(`/api/car-washes/lavacao-lua/services/${service.body.id}`)
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send({
+        name: 'Serviço invasor',
+        priceInCents: 1,
+        durationInMinutes: 1,
+        active: false,
+      })
+      .expect(404);
+    await ownerA.agent
+      .get('/api/car-washes/lavacao-sol/services')
+      .expect(200)
+      .expect([service.body]);
+
+    const openApi = await request(app.getHttpServer())
+      .get('/docs-json')
+      .expect(200);
+    const updateOperation =
+      openApi.body.paths['/api/car-washes/{carWashId}/services/{serviceId}']
+        .patch;
+    expect(updateOperation.responses).toMatchObject({
+      200: {
+        description: 'Serviço atualizado',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/ServiceOfferingDto' },
+          },
+        },
+      },
+      404: { description: 'Serviço não encontrado' },
+    });
+    expect(
+      updateOperation.requestBody.content['application/json'].schema,
+    ).toEqual({ $ref: '#/components/schemas/UpdateServiceOfferingDto' });
+    expect(
+      openApi.body.components.schemas.UpdateServiceOfferingDto,
+    ).toMatchObject({
+      required: ['name', 'priceInCents', 'durationInMinutes', 'active'],
+      properties: {
+        name: expect.any(Object),
+        priceInCents: expect.any(Object),
+        durationInMinutes: expect.any(Object),
+        active: expect.any(Object),
+      },
+    });
   });
 
   it('exige CSRF e revoga a sessão no logout', async () => {

@@ -60,6 +60,68 @@ type Availability = {
   slots: Array<{ startsAt: string; endsAt: string }>;
 };
 
+function serviceFormPayload(form: FormData) {
+  return {
+    name: form.get('name'),
+    priceInCents: Math.round(Number(form.get('price')) * 100),
+    durationInMinutes: Number(form.get('duration')),
+    active: form.get('active') === 'on',
+  };
+}
+
+function ServiceFields({ service }: { service?: ServiceOffering }) {
+  const editing = service !== undefined;
+  return (
+    <>
+      <label>
+        {editing ? 'Nome do serviço' : 'Nome'}
+        <input
+          name="name"
+          defaultValue={service?.name}
+          maxLength={120}
+          required
+        />
+      </label>
+      <div className="field-row">
+        <label>
+          {editing ? 'Preço do serviço (R$)' : 'Preço (R$)'}
+          <input
+            name="price"
+            type="number"
+            min="0"
+            max="1000000"
+            step="0.01"
+            defaultValue={
+              service ? (service.priceInCents / 100).toFixed(2) : undefined
+            }
+            required
+          />
+        </label>
+        <label>
+          {editing ? 'Duração do serviço (min)' : 'Duração (min)'}
+          <input
+            name="duration"
+            type="number"
+            min="1"
+            max="1440"
+            step="1"
+            defaultValue={service?.durationInMinutes}
+            required
+          />
+        </label>
+      </div>
+      <label className="checkbox">
+        <input
+          name="active"
+          type="checkbox"
+          defaultChecked={service?.active ?? true}
+        />
+        {editing ? 'Serviço disponível' : 'Serviço ativo'}
+      </label>
+    </>
+  );
+}
+
 const weekdayLabels = [
   'Domingo',
   'Segunda-feira',
@@ -570,6 +632,7 @@ function OwnerWorkspace({
     'Carregando informações públicas…',
   );
   const [message, setMessage] = useState('');
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   useEffect(() => {
     void api<ServiceOffering[]>(
@@ -614,24 +677,45 @@ function OwnerWorkspace({
     event.preventDefault();
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const price = Number(form.get('price'));
     try {
       const service = await api<ServiceOffering>(
         `/api/car-washes/${membership.carWashId}/services`,
         {
           method: 'POST',
           headers: { 'x-csrf-token': session.csrfToken },
-          body: JSON.stringify({
-            name: form.get('name'),
-            priceInCents: Math.round(price * 100),
-            durationInMinutes: Number(form.get('duration')),
-            active: form.get('active') === 'on',
-          }),
+          body: JSON.stringify(serviceFormPayload(form)),
         },
       );
       setServices((current) => [...current, service]);
       setMessage('Serviço cadastrado.');
       formElement.reset();
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  async function updateService(
+    event: FormEvent<HTMLFormElement>,
+    serviceId: string,
+  ) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      const service = await api<ServiceOffering>(
+        `/api/car-washes/${membership.carWashId}/services/${serviceId}`,
+        {
+          method: 'PATCH',
+          headers: { 'x-csrf-token': session.csrfToken },
+          body: JSON.stringify(serviceFormPayload(form)),
+        },
+      );
+      setServices((current) =>
+        current.map((candidate) =>
+          candidate.id === service.id ? service : candidate,
+        ),
+      );
+      setEditingServiceId(null);
+      setMessage('Serviço atualizado.');
     } catch (error) {
       setMessage(errorMessage(error));
     }
@@ -678,38 +762,7 @@ function OwnerWorkspace({
         <section className="panel">
           <h2>Novo serviço</h2>
           <form onSubmit={createService}>
-            <label>
-              Nome
-              <input name="name" maxLength={120} required />
-            </label>
-            <div className="field-row">
-              <label>
-                Preço (R$)
-                <input
-                  name="price"
-                  type="number"
-                  min="0"
-                  max="1000000"
-                  step="0.01"
-                  required
-                />
-              </label>
-              <label>
-                Duração (min)
-                <input
-                  name="duration"
-                  type="number"
-                  min="1"
-                  max="1440"
-                  step="1"
-                  required
-                />
-              </label>
-            </div>
-            <label className="checkbox">
-              <input name="active" type="checkbox" defaultChecked /> Serviço
-              ativo
-            </label>
+            <ServiceFields />
             <button type="submit">Cadastrar serviço</button>
           </form>
           <Status message={message} />
@@ -722,14 +775,46 @@ function OwnerWorkspace({
             <ul className="service-list">
               {services.map((service) => (
                 <li key={service.id}>
-                  <div>
-                    <strong>{service.name}</strong>
-                    <span>
-                      {service.durationInMinutes} min ·{' '}
-                      {service.active ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </div>
-                  <b>{formatMoney(service.priceInCents)}</b>
+                  {editingServiceId === service.id ? (
+                    <form
+                      className="service-editor"
+                      onSubmit={(event) =>
+                        void updateService(event, service.id)
+                      }
+                    >
+                      <ServiceFields service={service} />
+                      <div className="service-actions">
+                        <button type="submit">Salvar alterações</button>
+                        <button
+                          type="button"
+                          className="secondary inline-button"
+                          onClick={() => setEditingServiceId(null)}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <div>
+                        <strong>{service.name}</strong>
+                        <span>
+                          {service.durationInMinutes} min ·{' '}
+                          {service.active ? 'Ativo' : 'Inativo'}
+                        </span>
+                      </div>
+                      <div className="service-summary-actions">
+                        <b>{formatMoney(service.priceInCents)}</b>
+                        <button
+                          type="button"
+                          className="secondary inline-button"
+                          onClick={() => setEditingServiceId(service.id)}
+                        >
+                          Editar
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

@@ -10,6 +10,23 @@ import {
   MinLength,
 } from 'class-validator';
 
+export class ServiceOfferingDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty({ description: 'Preço inteiro em centavos' })
+  priceInCents: number;
+
+  @ApiProperty()
+  durationInMinutes: number;
+
+  @ApiProperty()
+  active: boolean;
+}
+
 export class CreateServiceOfferingDto {
   @ApiProperty({ example: 'Lavagem completa' })
   @Transform(({ value }: { value: unknown }) =>
@@ -36,3 +53,5 @@ export class CreateServiceOfferingDto {
   @IsBoolean()
   active: boolean;
 }
+
+export class UpdateServiceOfferingDto extends CreateServiceOfferingDto {}

@@ -4,15 +4,14 @@
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os sete primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os oito primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-[Issue #8](https://github.com/kauepacheco/nitivo/issues/8):
-abrir o WhatsApp com o resumo mínimo da reserva e orientar pedidos de
-cancelamento e reagendamento.
+[Issue #9](https://github.com/kauepacheco/nitivo/issues/9): editar e desativar
+serviços preservando os dados históricos das reservas.
 
 ## Concluído
 
@@ -113,6 +112,13 @@ cancelamento e reagendamento.
 - reserva continua confirmada e visível na agenda sem abertura ou envio pelo
   WhatsApp; teste de navegador valida o destino e o texto usando dados fictícios,
   sem disparar mensagem real.
+- proprietário edita nome, preço, duração e situação do serviço pela interface;
+  serviços inativos deixam de aparecer e não aceitam novas reservas;
+- novas reservas usam os dados vigentes do catálogo, enquanto nome, preço e
+  duração de reservas existentes permanecem preservados no histórico;
+- atualização do serviço usa a mesma trava transacional da confirmação pública;
+  testes HTTP cobrem concorrência, validação monetária, isolamento e restrição
+  do funcionário, e a jornada móvel cobre edição e desativação.
 
 ## Objetivo atual
 
@@ -127,6 +133,11 @@ O GitHub foi consultado pelo conector: `main` remota em `d76b1415`, com as
 issues #2–#6 integradas. Checklists e estados das issues #2–#8 foram reconciliados, e a issue #1 recebeu
 acompanhamento sem alterar o escopo da especificação.
 As issues #7 e #8 ficam abertas até publicação e integração na `main` remota.
+
+A issue #9 está implementada localmente na branch `feat/9-edicao-servicos` e
+aguarda publicação, integração à `main` e reconciliação no GitHub.
+Verificação da entrega: lint, tipos e build passaram; 1 teste unitário, 43 testes
+HTTP com PostgreSQL real e 10 jornadas de navegador passaram.
 
 O push permanece pendente de solicitação explícita e acesso Git autenticado;
 a tentativa de fetch por SSH retornou `Permission denied (publickey)`.
@@ -147,15 +158,15 @@ foram extraídas em `/tmp` para a validação, sem instalação no sistema.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação a [issue #9](https://github.com/kauepacheco/nitivo/issues/9): editar e desativar
-serviços preservando os dados históricos das reservas.
+Implementar em nova solicitação a [issue #10](https://github.com/kauepacheco/nitivo/issues/10): corrigir os dados de
+cliente e veículo pela agenda sem criar acesso público aos cadastros.
 
 ## Pendências de execução
 
-- aguardar nova solicitação antes de iniciar a issue #9;
+- aguardar nova solicitação antes de iniciar a issue #10;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar as issues #9 a #23 em sequência;
+- implementar e verificar as issues #10 a #23 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 - sincronizar commits locais com o GitHub após solicitação explícita de push;
