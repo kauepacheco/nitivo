@@ -25,7 +25,7 @@ continua pendente de solicitação explícita de push e acesso Git autenticado.
 | [#6](https://github.com/kauepacheco/nitivo/issues/6) | Sim | Sim | Sim / Sim | Fechada | `58bab24f` |
 | [#7](https://github.com/kauepacheco/nitivo/issues/7) | Sim | Pendente | Sim / Não | Aberta; aguarda publicação | `a94a991a` |
 | [#8](https://github.com/kauepacheco/nitivo/issues/8) | Sim | Pendente | Sim / Não | Aberta; aguarda publicação | `585c88d1` |
-| [#9](https://github.com/kauepacheco/nitivo/issues/9) | Sim | Não | Não / Não | Aberta; aguarda publicação | commit desta entrega na `feat/9-edicao-servicos` |
+| [#9](https://github.com/kauepacheco/nitivo/issues/9) | Sim | Não | Não / Não | Aberta; aguarda publicação | `219b0074` |
 | [#10](https://github.com/kauepacheco/nitivo/issues/10) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#11](https://github.com/kauepacheco/nitivo/issues/11) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#12](https://github.com/kauepacheco/nitivo/issues/12) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |

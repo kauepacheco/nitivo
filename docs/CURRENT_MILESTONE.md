@@ -134,8 +134,9 @@ issues #2–#6 integradas. Checklists e estados das issues #2–#8 foram reconci
 acompanhamento sem alterar o escopo da especificação.
 As issues #7 e #8 ficam abertas até publicação e integração na `main` remota.
 
-A issue #9 está implementada localmente na branch `feat/9-edicao-servicos` e
-aguarda publicação, integração à `main` e reconciliação no GitHub.
+A issue #9 está implementada localmente no commit `219b0074`, na branch
+`feat/9-edicao-servicos`, e aguarda publicação, integração à `main` e
+reconciliação no GitHub.
 Verificação da entrega: lint, tipos e build passaram; 1 teste unitário, 43 testes
 HTTP com PostgreSQL real e 10 jornadas de navegador passaram.
 
