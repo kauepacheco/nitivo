@@ -28,7 +28,9 @@ planejado; o estado de implementação está no
 O recorte do primeiro piloto está consolidado no
 [planejamento do SaaS](docs/SAAS_PLAN.md), aprovado pelo proprietário com sua
 proposta técnica e cronograma estimado. Os tickets são implementados em sequência;
-os sete primeiros estão concluídos e os seguintes aguardam novas solicitações.
+as issues #2–#8 estão implementadas localmente e as seguintes aguardam novas
+solicitações. O [índice das issues](docs/specs/tickets-primeiro-piloto-saas.md)
+distingue implementação, publicação do código e integração à `main`.
 As decisões confirmadas para o produto
 incluem autoagendamento sem conta obrigatória, reserva por box e painel do
 proprietário, sem pagamento online. Os demais itens abaixo descrevem o escopo

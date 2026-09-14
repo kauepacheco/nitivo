@@ -180,7 +180,7 @@ preexistentes fazem a migration falhar e exigem conferência, sem apagar reserva
 As chaves estrangeiras compostas impedem relações entre tenants e entre um
 veículo e cliente incompatíveis. Nome/preço/duração do serviço ficam na reserva;
 a criação registra `PUBLIC` e seu instante, sem atribuir identidade autenticada.
-Ocupações anteriores do ticket 5 permanecem `LEGACY`, sem inventar cliente ou
+Ocupações anteriores da issue #6 permanecem `LEGACY`, sem inventar cliente ou
 veículo. Novas reservas públicas exigem ambos no banco. Futuras operações de
 encaixe, reagendamento e alterações de catálogo devem respeitar o mesmo protocolo
 de concorrência antes de serem disponibilizadas.

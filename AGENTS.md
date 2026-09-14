@@ -43,6 +43,9 @@ Se os documentos e o código divergirem, não escolha silenciosamente um deles. 
 - Adicione ou atualize testes quando houver comportamento executável.
 - Execute as verificações proporcionais à alteração e relate o resultado.
 - Mantenha `docs/CURRENT_MILESTONE.md` atualizado quando uma etapa relevante começar ou terminar.
+- Use o número da issue em documentos, branches e novos commits. Ao concluir
+  uma entrega ou integrar branches, siga `docs/WORKFLOW.md` e reconcilie o índice
+  conforme `docs/agents/issue-tracker.md`, distinguindo estado local e remoto.
 - Crie ADRs apenas para decisões difíceis de reverter, não óbvias e que envolvam uma escolha real entre alternativas.
 - Ao concluir uma implementação solicitada, crie um commit apenas com as mudanças
   pertencentes à tarefa e informe seu hash. Faça push somente após solicitação

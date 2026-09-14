@@ -1,11 +1,14 @@
 # Plano do primeiro piloto do Nitivo
 
-Atualizado em 9 de setembro de 2026.
+Planejamento aprovado em 9 de setembro de 2026. Nota de acompanhamento atualizada
+em 14 de setembro de 2026: este documento preserva o plano e o diagnóstico de
+origem. Consulte o [marco atual](CURRENT_MILESTONE.md) e o
+[índice das issues](specs/tickets-primeiro-piloto-saas.md) para entregas realizadas.
 
 Status: planejamento concluído e aprovado pelo proprietário na resposta Q19,
 em 9 de setembro de 2026. A aprovação inclui proposta técnica, cronograma,
-acesso assistido da equipe e encaixes imediatos. Por instrução expressa do
-proprietário, não iniciar implementação agora; aguardar nova solicitação.
+acesso assistido da equipe e encaixes imediatos. Naquele momento, o proprietário
+orientou aguardar nova solicitação para implementar cada entrega.
 
 ## Objetivo e limites confirmados
 
@@ -184,7 +187,7 @@ Esse processo exige disponibilidade humana e procedimento documentado.
 
 Requisitos técnicos e fontes estão em
 [infraestrutura e acesso da equipe](PILOT_INFRASTRUCTURE.md).
-Essas escolhas foram aprovadas no planejamento e ainda não estão implementadas.
+Essas escolhas foram aprovadas no planejamento; o andamento está no marco atual.
 
 ## Entregas e critérios de aceite
 
@@ -200,7 +203,7 @@ do escopo e dos resultados. Não adiar todos os testes para a última semana.
 | Semana 4 | Implantação, revisão do fluxo em celular, recuperação e preparação operacional do piloto. | Testes de navegador dos fluxos essenciais; recuperação de conta e restauração do banco ensaiadas; monitoramento e procedimento de incidentes prontos; orçamento conferido; critérios de dados reais atendidos. |
 | Após entrada da lavação | 14 dias de piloto e avaliação comercial. | Uso acompanhado, problemas registrados e manifestação explícita sobre continuar por R$ 49/mês; cobrança manual se aceitar. |
 
-Primeiro incremento quando a implementação for solicitada: proprietário acessa sua lavação
+Primeiro incremento definido no planejamento (issue #2): proprietário acessa sua lavação
 e cadastra/lista um serviço persistido pela interface; incluir teste com segunda
 lavação e autorização no mesmo incremento. Integrar o esqueleto local de
 service-catalog, preservando o trabalho já existente.
@@ -294,7 +297,7 @@ O prazo de código não substitui recrutamento nem preparação operacional e
 jurídica. Custos externos dessa preparação ainda não estão orçados; obter
 condições compatíveis ou adiar o tratamento real, sem declarar conformidade pronta.
 
-## Diagnóstico da base e trabalho preservado
+## Diagnóstico histórico da base — 9 de setembro de 2026
 
 A inspeção encontrou apenas GET /health funcional, controller e serviço de
 catálogo vazios e a interface ServiceOffering. Não existem banco, autenticação,
@@ -321,5 +324,5 @@ Pendências externas para execução: recrutar a lavação, conferir custo real 
 de provisionar e preparar operação e privacidade. Elas têm responsáveis e
 critérios no plano, e não exigem inventar respostas dos futuros compradores.
 
-O proprietário pediu expressamente para não implementar nada agora. A aceitação
-está registrada no marco atual; a implementação depende de nova solicitação.
+Ao encerrar o planejamento, o proprietário pediu para aguardar nova solicitação.
+As autorizações e entregas posteriores estão registradas no marco atual.

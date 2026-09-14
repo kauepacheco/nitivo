@@ -1,8 +1,13 @@
 # Primeiro piloto comercial do Nitivo
 
+Nota de acompanhamento — 14 de setembro de 2026: a divisão aprovada está nas
+issues #2–#23. Consulte o [índice das issues](tickets-primeiro-piloto-saas.md)
+para implementação, publicação e integração. A especificação preserva o escopo
+aprovado; o diagnóstico de origem abaixo descreve 9 de setembro de 2026.
+
 Especificação sintetizada do plano aprovado na resposta Q19, em 9 de setembro
 de 2026. Destino: GitHub Issues de kauepacheco/nitivo, com o rótulo
-ready-for-agent. A implementação continua aguardando nova solicitação do
+ready-for-agent. Na publicação inicial, a implementação aguardava nova solicitação do
 proprietário do Nitivo.
 
 ## Problem Statement
@@ -218,5 +223,5 @@ teste ou fixture deve usar cliente real ou disparar mensagem real no WhatsApp.
 - **Validação comercial:** o proprietário do Nitivo conduz cinco conversas digitais e busca uma lavação compatível com o modelo de box. Acompanhar dias de uso, reservas feitas pelo cliente e pela equipe, dificuldades, faltas e pedidos de alteração. Evidência comercial é aceitar continuar por R$ 49 mensais; registrar o primeiro pagamento separadamente. Interesse no teste gratuito não valida o preço.
 - **Cobrança e suporte:** mensalidade acompanhada manualmente fora do produto. Registrar período, valor e situação da cobrança, fazer contato individual e tratar fim de teste ou inadimplência sem apagar dados ou abandonar reservas futuras. Materiais, organização de contatos e acompanhamentos podem apoiar a rotina; mensagens e atendimento inicial são conduzidos pelo proprietário do Nitivo.
 - **Dependências operacionais:** recrutar a lavação, confirmar custos efetivos antes do provisionamento, definir cópia externa e retenção, preparar recuperação, suporte, privacidade e documentos aplicáveis. Custos externos de preparação jurídica ou operacional ainda não estão orçados. Esses critérios não são satisfeitos apenas porque o código funciona.
-- **Trabalho existente:** preservar alterações locais anteriores do backend e do catálogo e as skills não versionadas. A inspeção mais recente confirma que o catálogo continua vazio. Nenhum comportamento de negócio foi implementado nesta tarefa.
+- **Trabalho existente:** preservar alterações locais anteriores do backend e do catálogo e as skills não versionadas. Na inspeção de 9 de setembro de 2026, o catálogo estava vazio; aquela tarefa alterou somente documentação. O andamento posterior está no índice das issues.
 - **Publicação e execução:** o rastreador confirmado é GitHub Issues de kauepacheco/nitivo, com ready-for-agent como rótulo de especificação pronta, sem triagem adicional. A configuração das skills foi aprovada pelo proprietário. Publicar esta especificação não autoriza iniciar implementação, contratar serviços, fazer commit ou push.

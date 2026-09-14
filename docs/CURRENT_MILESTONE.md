@@ -10,7 +10,7 @@ uso de dados reais.
 
 ## Marco
 
-Ticket 7 do piloto, [issue #8](https://github.com/kauepacheco/nitivo/issues/8):
+[Issue #8](https://github.com/kauepacheco/nitivo/issues/8):
 abrir o WhatsApp com o resumo mínimo da reserva e orientar pedidos de
 cancelamento e reagendamento.
 
@@ -84,7 +84,7 @@ cancelamento e reagendamento.
   permitindo término exato no fechamento;
 - reduções de expediente ou capacidade exibem reservas futuras conflitantes e
   não alteram a configuração nem os compromissos; exceções e bloqueios
-  permanecem reservados ao ticket 14;
+  permanecem reservados à issue #15;
 - jornada móvel permite ao proprietário configurar capacidade e expediente e ao
   cliente consultar horários para o serviço e a data escolhidos.
 
@@ -116,10 +116,26 @@ cancelamento e reagendamento.
 
 ## Objetivo atual
 
-Ticket 7 implementado e validado localmente, por solicitação do proprietário em
-14 de setembro de 2026. Branch: `feat/8-whatsapp-resumo-politica`. A especificação
-local da issue #8 foi conferida; a consulta direta ao GitHub não ficou disponível
-neste ambiente. Nenhuma publicação, alteração da issue ou push foi realizada.
+Alinhamento das entregas concluído em 14 de setembro de 2026: identificação pelo
+número da issue, índice reconciliado e issues #7 e #8 integradas à `main` local
+por avanço direto, preservando os commits `a94a991a` e `585c88d1`.
+As branches de trabalho integradas foram removidas localmente.
+
+O [índice das issues](specs/tickets-primeiro-piloto-saas.md) concentra o estado de
+implementação, publicação do código e integração local/remota por entrega.
+O GitHub foi consultado pelo conector: `main` remota em `d76b1415`, com as
+issues #2–#6 integradas. Checklists e estados das issues #2–#8 foram reconciliados, e a issue #1 recebeu
+acompanhamento sem alterar o escopo da especificação.
+As issues #7 e #8 ficam abertas até publicação e integração na `main` remota.
+
+O push permanece pendente de solicitação explícita e acesso Git autenticado;
+a tentativa de fetch por SSH retornou `Permission denied (publickey)`.
+O conector permite manter as issues atualizadas, mas não sincroniza o clone.
+A próxima branch deve partir da `main` depois de confirmar a sincronização.
+
+Verificação desta reconciliação: lint, tipos e build passaram; 1 teste unitário,
+40 HTTP com PostgreSQL real e 10 de navegador passaram. Conferência documental
+preservou as entregas, histórias e dependências das 22 issues.
 
 A coleção de 37 skills permanece preservada conforme decisão do proprietário;
 detalhes em [Skills do Nitivo](../.agents/skills/README.md).
@@ -131,20 +147,19 @@ foram extraídas em `/tmp` para a validação, sem instalação no sistema.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação o ticket 8,
-[issue #9](https://github.com/kauepacheco/nitivo/issues/9): editar e desativar
+Implementar em nova solicitação a [issue #9](https://github.com/kauepacheco/nitivo/issues/9): editar e desativar
 serviços preservando os dados históricos das reservas.
 
 ## Pendências de execução
 
-- aguardar nova solicitação antes de iniciar o ticket 8;
+- aguardar nova solicitação antes de iniciar a issue #9;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar os tickets 8 a 22 em sequência;
+- implementar e verificar as issues #9 a #23 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 - sincronizar commits locais com o GitHub após solicitação explícita de push;
-  acesso de escrita por SSH não foi revalidado nesta tarefa.
+  acesso por SSH precisa ser restabelecido nesta máquina.
 
 ## Orientação para uma nova sessão
 

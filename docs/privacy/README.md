@@ -64,7 +64,7 @@ contato já registrado; se a solicitação vier do próprio responsável, a conf
 usa os registros da entrada assistida e contato direto. Sem evidência suficiente,
 o acesso permanece bloqueado e o operador encaminha o caso ao suporte do Nitivo.
 
-## Reserva pública e contato voluntário implementados (tickets 6 e 7)
+## Reserva pública e contato voluntário implementados (issues #7 e #8)
 
 Nome, telefone informado e placa são coletados para organizar o atendimento e
 permitir contato operacional da lavação. Não há verificação automática do telefone
