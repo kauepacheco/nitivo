@@ -4,14 +4,14 @@
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os nove primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os dez primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-[Issue #10](https://github.com/kauepacheco/nitivo/issues/10): corrigir cliente e
-veículo pela agenda.
+[Issue #11](https://github.com/kauepacheco/nitivo/issues/11): registrar encaixe
+para início imediato ou outro horário disponível.
 
 ## Concluído
 
@@ -126,58 +126,50 @@ veículo pela agenda.
 - testes HTTP com PostgreSQL cobrem persistência, outro tenant, concorrência e
   rollback, e a jornada móvel comprova a correção na agenda diária e nos próximos
   atendimentos.
+- proprietários e funcionários consultam horários e registram encaixes pela
+  agenda, dispensando somente a antecedência exigida no autoagendamento;
+- encaixe respeita expediente, duração, intervalo entre inícios, capacidade e a
+  mesma trava transacional e exclusion constraint da reserva pública;
+- cliente, veículo e agendamento são persistidos atomicamente com origem `TEAM`,
+  autoria do vínculo autenticado no mesmo tenant e snapshot histórico do serviço;
+- testes HTTP com PostgreSQL real cobrem funcionário, isolamento, CSRF,
+  preservação histórica e disputa concorrente com a reserva pública; a jornada
+  móvel cobre a operação completa com dados fictícios.
 
 ## Objetivo atual
 
-Alinhamento das entregas concluído em 14 de setembro de 2026: identificação pelo
-número da issue, índice reconciliado e issues #7 e #8 integradas à `main` local
-por avanço direto, preservando os commits `a94a991a` e `585c88d1`.
-As branches de trabalho integradas foram removidas localmente.
+O GitHub foi consultado em 15 de setembro de 2026: a `main` remota está no merge
+`847aee2b`, que integra e encerra as issues #7–#10. O clone não conseguiu executar
+`git fetch` por falta da chave SSH. A `main` local avançou até `e86405b3`, pai
+desse merge e com a mesma árvore de conteúdo, antes da criação da branch atual.
 
-O [índice das issues](specs/tickets-primeiro-piloto-saas.md) concentra o estado de
-implementação, publicação do código e integração local/remota por entrega.
-O GitHub foi consultado pelo conector: `main` remota em `b8d56c52` e a branch
-`feat/9-edicao-servicos` dois commits à frente, incluindo `219b0074` e
-`f41726d6`. A issue #9 está publicada e integrada à `main` local, mas ainda não à
-`main` remota. As issues #7–#9 permanecem abertas até a reconciliação remota.
+A issue #11 está implementada localmente na branch `feat/11-encaixe`. Aguarda
+publicação e integração à `main`; não houve push nem alteração remota da issue
+nesta tarefa. O [índice das issues](specs/tickets-primeiro-piloto-saas.md)
+distingue esses estados.
 
-A issue #10 está implementada localmente na branch
-`feat/10-correcao-cliente-veiculo`, no commit `efd44a54`. Aguarda publicação,
-integração à `main` e reconciliação no GitHub.
-
-Verificação da issue #10 em 15 de setembro de 2026: lint, tipos e build passaram;
-1 teste unitário, 47 testes HTTP com PostgreSQL real e 10 jornadas de navegador
-passaram.
-
-O push permanece pendente de solicitação explícita e acesso Git autenticado;
-a tentativa de fetch por SSH retornou `Permission denied (publickey)`.
-O conector permite manter as issues atualizadas, mas não sincroniza o clone.
-A próxima branch deve partir da `main` depois de integrar esta entrega e
-confirmar a sincronização possível.
-
-Verificação desta reconciliação: lint, tipos e build passaram; 1 teste unitário,
-40 HTTP com PostgreSQL real e 10 de navegador passaram. Conferência documental
-preservou as entregas, histórias e dependências das 22 issues.
+Verificações finais da issue #11: lint, tipos e build passaram, assim como 1
+teste unitário, 49 testes HTTP com PostgreSQL real e 11 jornadas de navegador.
 
 A coleção de 37 skills permanece preservada conforme decisão do proprietário;
 detalhes em [Skills do Nitivo](../.agents/skills/README.md).
 
 O produto ainda não está pronto para demonstração remota ou piloto: faltam os
 incrementos seguintes, implantação e critérios operacionais e de privacidade.
-Somente dados fictícios foram utilizados. As bibliotecas que faltavam ao Chromium
-foram extraídas em `/tmp` para a validação, sem instalação no sistema.
+Somente dados fictícios foram utilizados. O Chromium usa as bibliotecas já
+extraídas em `backend/.local/browser-libs`, ignoradas pelo Git.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação a [issue #11](https://github.com/kauepacheco/nitivo/issues/11): registrar encaixe
-para início imediato ou outro horário disponível.
+Implementar em nova solicitação a [issue #12](https://github.com/kauepacheco/nitivo/issues/12):
+iniciar, concluir e marcar falta em atendimentos.
 
 ## Pendências de execução
 
-- aguardar nova solicitação antes de iniciar a issue #11;
+- publicar e integrar a issue #11 conforme solicitação;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar as issues #11 a #23 em sequência;
+- implementar e verificar as issues #12 a #23 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 - sincronizar commits locais com o GitHub após solicitação explícita de push;

@@ -227,28 +227,53 @@ type Appointment = {
   serviceName: string;
   servicePriceInCents: number;
   serviceDurationInMinutes: number;
+  origin: string;
+  createdBy: { id: string; user: { email: string } } | null;
   customer: { name: string; phone: string } | null;
   vehicle: { plate: string } | null;
   box: { name: string };
+};
+type TeamService = {
+  id: string;
+  name: string;
+  priceInCents: number;
+  durationInMinutes: number;
 };
 type Agenda = {
   date: string;
   timezone: string;
   appointments: Appointment[];
   upcoming: Appointment[];
+  services: TeamService[];
+};
+type WalkInAvailability = {
+  date: string;
+  timezone: string;
+  slots: Array<{ startsAt: string; endsAt: string }>;
 };
 
 export function TeamAgenda({
   carWashId,
   csrfToken,
+  catalogRevision = 0,
 }: {
   carWashId: string;
   csrfToken: string;
+  catalogRevision?: number;
 }) {
   const [date, setDate] = useState('');
   const [agenda, setAgenda] = useState<Agenda | null>(null);
   const [message, setMessage] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const [walkInDate, setWalkInDate] = useState('');
+  const [walkInServiceId, setWalkInServiceId] = useState('');
+  const [walkInAvailability, setWalkInAvailability] =
+    useState<WalkInAvailability | null>(null);
+  const [selectedWalkInSlot, setSelectedWalkInSlot] = useState<string | null>(
+    null,
+  );
+  const [walkInMessage, setWalkInMessage] = useState('');
+  const [walkInPending, setWalkInPending] = useState(false);
   const agendaView = `${carWashId}:${date}:${refresh}`;
   const activeAgendaView = useRef(agendaView);
   activeAgendaView.current = agendaView;
@@ -261,6 +286,7 @@ export function TeamAgenda({
       .then((result) => {
         if (active) {
           setAgenda(result);
+          setWalkInDate((current) => current || result.date);
           setMessage('');
         }
       })
@@ -270,7 +296,60 @@ export function TeamAgenda({
     return () => {
       active = false;
     };
-  }, [carWashId, date, refresh]);
+  }, [carWashId, catalogRevision, date, refresh]);
+
+  async function consultWalkInAvailability(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const serviceId = String(form.get('serviceId'));
+    const targetDate = String(form.get('date'));
+    setWalkInMessage('Consultando horários…');
+    setWalkInAvailability(null);
+    setSelectedWalkInSlot(null);
+    try {
+      const params = new URLSearchParams({ serviceId, date: targetDate });
+      const result = await api<WalkInAvailability>(
+        `/api/car-washes/${carWashId}/appointments/walk-in-availability?${params}`,
+      );
+      setWalkInServiceId(serviceId);
+      setWalkInAvailability(result);
+      setWalkInMessage(
+        result.slots.length ? '' : 'Nenhum horário disponível para encaixe.',
+      );
+    } catch (error) {
+      setWalkInMessage(errorMessage(error));
+    }
+  }
+
+  async function createWalkIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedWalkInSlot || !walkInAvailability) return;
+    const form = new FormData(event.currentTarget);
+    setWalkInPending(true);
+    setWalkInMessage('');
+    try {
+      await api(`/api/car-washes/${carWashId}/appointments/walk-ins`, {
+        method: 'POST',
+        headers: { 'x-csrf-token': csrfToken },
+        body: JSON.stringify({
+          serviceId: walkInServiceId,
+          startsAt: selectedWalkInSlot,
+          name: normalizeName(form.get('name')),
+          phone: normalizePhone(form.get('phone')),
+          plate: normalizePlate(form.get('plate')),
+        }),
+      });
+      setDate(walkInAvailability.date);
+      setWalkInAvailability(null);
+      setSelectedWalkInSlot(null);
+      setWalkInMessage('Encaixe registrado.');
+      setRefresh((value) => value + 1);
+    } catch (error) {
+      setWalkInMessage(errorMessage(error));
+    } finally {
+      setWalkInPending(false);
+    }
+  }
 
   async function updateCustomerVehicle(
     appointmentId: string,
@@ -328,6 +407,91 @@ export function TeamAgenda({
       {agenda ? (
         <>
           <p>Horários da lavação ({agenda.timezone}).</p>
+          <section aria-label="Registrar encaixe" className="walk-in-form">
+            <h3>Novo encaixe</h3>
+            <p>
+              A equipe pode usar o primeiro horário disponível sem a
+              antecedência exigida no autoagendamento.
+            </p>
+            <form onSubmit={consultWalkInAvailability}>
+              <label>
+                Serviço do encaixe
+                <select name="serviceId" required defaultValue="">
+                  <option value="" disabled>
+                    Selecione um serviço
+                  </option>
+                  {agenda.services.map((service) => (
+                    <option key={service.id} value={service.id}>
+                      {service.name} — {service.durationInMinutes} min
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Data do encaixe
+                <input
+                  name="date"
+                  type="date"
+                  required
+                  value={walkInDate}
+                  onChange={(event) => setWalkInDate(event.target.value)}
+                />
+              </label>
+              <button type="submit">Consultar encaixes</button>
+            </form>
+            {walkInAvailability?.slots.length ? (
+              <div className="slot-list" aria-label="Horários para encaixe">
+                {walkInAvailability.slots.map((slot) => (
+                  <button
+                    key={slot.startsAt}
+                    type="button"
+                    className="slot"
+                    aria-pressed={selectedWalkInSlot === slot.startsAt}
+                    onClick={() => setSelectedWalkInSlot(slot.startsAt)}
+                  >
+                    {formatTime(slot.startsAt, walkInAvailability.timezone)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {selectedWalkInSlot && walkInAvailability ? (
+              <form onSubmit={createWalkIn}>
+                <p>
+                  Horário escolhido:{' '}
+                  {formatTime(selectedWalkInSlot, walkInAvailability.timezone)}
+                </p>
+                <fieldset disabled={walkInPending}>
+                  <label>
+                    Nome do cliente do encaixe
+                    <input name="name" required maxLength={100} />
+                  </label>
+                  <label>
+                    Telefone do cliente do encaixe
+                    <input
+                      name="phone"
+                      type="tel"
+                      required
+                      pattern="[0-9 ()+\-]{10,22}"
+                      maxLength={22}
+                    />
+                  </label>
+                  <label>
+                    Placa do veículo do encaixe
+                    <input
+                      name="plate"
+                      required
+                      pattern="[A-Za-z]{3}-?[0-9][A-Za-z0-9][0-9]{2}"
+                      maxLength={8}
+                    />
+                  </label>
+                </fieldset>
+                <button type="submit" disabled={walkInPending}>
+                  {walkInPending ? 'Registrando…' : 'Registrar encaixe'}
+                </button>
+              </form>
+            ) : null}
+            {walkInMessage ? <p role="status">{walkInMessage}</p> : null}
+          </section>
           <section aria-label="Agenda diária">
             <h3>Atendimentos do dia</h3>
             <AppointmentList
@@ -386,6 +550,14 @@ function AppointmentList({
               ? 'Confirmado'
               : appointment.status}
           </p>
+          {appointment.origin === 'TEAM' ? (
+            <p>
+              Encaixe da equipe
+              {appointment.createdBy
+                ? ` · Criado por ${appointment.createdBy.user.email}`
+                : ''}
+            </p>
+          ) : null}
           {appointment.customer ? (
             <p>Telefone informado: {appointment.customer.phone}</p>
           ) : null}

@@ -147,6 +147,23 @@ export class SchedulingService {
     query: AvailabilityQueryDto,
     database: Prisma.TransactionClient = this.prisma,
   ) {
+    return this.calculateAvailability(slug, query, database, 'PUBLIC');
+  }
+
+  async getWalkInAvailability(
+    slug: string,
+    query: AvailabilityQueryDto,
+    database: Prisma.TransactionClient = this.prisma,
+  ) {
+    return this.calculateAvailability(slug, query, database, 'TEAM');
+  }
+
+  private async calculateAvailability(
+    slug: string,
+    query: AvailabilityQueryDto,
+    database: Prisma.TransactionClient,
+    origin: 'PUBLIC' | 'TEAM',
+  ) {
     const carWash = await database.carWash.findUnique({
       where: { slug },
       select: {
@@ -211,7 +228,9 @@ export class SchedulingService {
       select: { boxId: true, startsAt: true, endsAt: true },
     });
     const earliest = new Date(
-      Date.now() + carWash.minimumBookingNoticeMinutes * 60_000,
+      Date.now() +
+        (origin === 'PUBLIC' ? carWash.minimumBookingNoticeMinutes : 0) *
+          60_000,
     );
     for (
       let minute = hours.opensAtMinute;

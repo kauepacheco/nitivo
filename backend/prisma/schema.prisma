@@ -97,6 +97,8 @@ model Appointment {
   requestHash              String?
   customer                 Customer?         @relation(fields: [customerId, carWashId], references: [id, carWashId], onDelete: Restrict)
   vehicle                  Vehicle?          @relation(fields: [vehicleId, customerId, carWashId], references: [id, customerId, carWashId], onDelete: Restrict)
+  createdByMembershipId    String?
+  createdBy                Membership?       @relation(fields: [createdByMembershipId, carWashId], references: [id, carWashId], onDelete: Restrict)
   boxId                    String
   serviceOfferingId        String
   startsAt                 DateTime          @db.Timestamptz(3)
@@ -112,6 +114,7 @@ model Appointment {
   @@unique([carWashId, attemptHash])
   @@index([carWashId, startsAt, endsAt])
   @@index([boxId, startsAt, endsAt])
+  @@index([createdByMembershipId, carWashId])
 }
 
 model WeeklyOpeningHour {
@@ -157,16 +160,18 @@ model EmployeeInvitation {
 }
 
 model Membership {
-  id        String           @id @default(cuid())
-  userId    String
-  carWashId String
-  role      MembershipRole
-  status    MembershipStatus @default(ACTIVE)
-  createdAt DateTime         @default(now()) @db.Timestamptz(3)
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  carWash   CarWash          @relation(fields: [carWashId], references: [id], onDelete: Cascade)
+  id                  String           @id @default(cuid())
+  userId              String
+  carWashId           String
+  role                MembershipRole
+  status              MembershipStatus @default(ACTIVE)
+  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  carWash             CarWash          @relation(fields: [carWashId], references: [id], onDelete: Cascade)
+  appointmentsCreated Appointment[]
 
   @@unique([userId, carWashId])
+  @@unique([id, carWashId])
   @@index([carWashId, status])
 }
 

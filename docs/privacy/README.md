@@ -103,3 +103,18 @@ do ORM não cheguem ao logger HTTP. A resposta da correção contém somente nom
 telefone e placa; a interface descarta respostas atrasadas depois de uma troca
 de lavação. Retenção e exercício de direitos continuam pendentes das issues
 específicas antes do uso de dados reais.
+
+## Encaixe da equipe implementado (issue #11)
+
+O encaixe coleta o mesmo recorte mínimo de nome, telefone e placa necessário ao
+atendimento. A operação exige sessão, vínculo ativo no tenant e CSRF; não cria
+uma interface pública de busca ou reaproveitamento de clientes. Cliente, veículo
+e agendamento são persistidos atomicamente e falhas do ORM recebem resposta
+genérica, sem encaminhar os dados informados ao logger HTTP.
+
+O agendamento registra origem `TEAM` e o vínculo autenticado que o criou para
+rastreabilidade interna. Uma chave estrangeira composta impede atribuir autoria
+de outra lavação. A agenda expõe essa autoria somente à equipe autorizada do
+tenant. Os testes usam identidades e dados fictícios; retenção e
+exercício de direitos permanecem pendentes das issues específicas antes do uso
+de dados reais.

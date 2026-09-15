@@ -1,6 +1,6 @@
 # Issues do primeiro piloto
 
-Atualizado em 14 de setembro de 2026. A issue #1 contém a especificação; as
+Atualizado em 15 de setembro de 2026. A issue #1 contém a especificação; as
 issues #2 a #23 contêm as 22 entregas aprovadas em 9 de setembro de 2026.
 O número do GitHub é o identificador principal em documentos, branches e commits.
 A numeração ordinal antiga foi aposentada: antigo ticket 1 = issue #2, até
@@ -12,10 +12,10 @@ Nomes de migrations e commits históricos são preservados.
 “Publicado” nesta tabela significa código disponível no GitHub, não aplicação
 implantada. As especificações de todas as issues já estão publicadas. Critérios
 de estado e fluxo de atualização: [issue tracker](../agents/issue-tracker.md).
-Consulta remota em 14 de setembro de 2026 confirmou `main` em `b8d56c52` e a
-branch da issue #9 dois commits à frente. A integração local das issues #7–#9
-preserva os commits originais; atualizar a `main` remota continua pendente de
-solicitação explícita de push e acesso Git autenticado.
+Consulta remota em 15 de setembro de 2026 confirmou `main` em `847aee2b`, com as
+issues #7–#10 integradas e fechadas. O clone não conseguiu atualizar a referência
+por falta da chave SSH, mas a `main` local avançou até `e86405b3`, pai do merge
+remoto e com a mesma árvore integrada. A issue #11 permanece somente local.
 
 | Issue | Implementado localmente | Código publicado | Integrado à main (local / GitHub) | Issue no GitHub | Evidência local |
 | --- | --- | --- | --- | --- | --- |
@@ -24,11 +24,11 @@ solicitação explícita de push e acesso Git autenticado.
 | [#4](https://github.com/kauepacheco/nitivo/issues/4) | Sim | Sim | Sim / Sim | Fechada | `a4e2fa57`, `62690284` |
 | [#5](https://github.com/kauepacheco/nitivo/issues/5) | Sim | Sim | Sim / Sim | Fechada | `abb83926`, `c1fb39bc` |
 | [#6](https://github.com/kauepacheco/nitivo/issues/6) | Sim | Sim | Sim / Sim | Fechada | `58bab24f` |
-| [#7](https://github.com/kauepacheco/nitivo/issues/7) | Sim | Pendente | Sim / Não | Aberta; aguarda publicação | `a94a991a` |
-| [#8](https://github.com/kauepacheco/nitivo/issues/8) | Sim | Pendente | Sim / Não | Aberta; aguarda publicação | `585c88d1` |
-| [#9](https://github.com/kauepacheco/nitivo/issues/9) | Sim | Sim | Sim / Não | Aberta; aguarda integração | `219b0074`, `f41726d6` |
-| [#10](https://github.com/kauepacheco/nitivo/issues/10) | Sim | Não | Não / Não | Aberta; aguarda publicação | `efd44a54` |
-| [#11](https://github.com/kauepacheco/nitivo/issues/11) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
+| [#7](https://github.com/kauepacheco/nitivo/issues/7) | Sim | Sim | Sim / Sim | Fechada | `a94a991a` |
+| [#8](https://github.com/kauepacheco/nitivo/issues/8) | Sim | Sim | Sim / Sim | Fechada | `585c88d1` |
+| [#9](https://github.com/kauepacheco/nitivo/issues/9) | Sim | Sim | Sim / Sim | Fechada | `219b0074`, `f41726d6` |
+| [#10](https://github.com/kauepacheco/nitivo/issues/10) | Sim | Sim | Sim / Sim | Fechada | `efd44a54`, `e86405b3` |
+| [#11](https://github.com/kauepacheco/nitivo/issues/11) | Sim | Não | Não / Não | Aberta; aguarda publicação | branch `feat/11-encaixe` |
 | [#12](https://github.com/kauepacheco/nitivo/issues/12) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#13](https://github.com/kauepacheco/nitivo/issues/13) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#14](https://github.com/kauepacheco/nitivo/issues/14) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
@@ -176,8 +176,8 @@ As dependências representam entregas necessárias; dados fictícios permitem ve
 
 **Histórias da especificação:** 27, 28, 43.
 
-- [ ] Dispensar apenas antecedência do autoagendamento; respeitar expediente, capacidade e controles de disponibilidade existentes.
-- [ ] Testar disputa entre encaixe e reserva pública com PostgreSQL real; persistir histórico, autoria e origem da equipe.
+- [x] Dispensar apenas antecedência do autoagendamento; respeitar expediente, capacidade e controles de disponibilidade existentes.
+- [x] Testar disputa entre encaixe e reserva pública com PostgreSQL real; persistir histórico, autoria e origem da equipe.
 
 ## Issue #12 — Iniciar, concluir e marcar falta
 

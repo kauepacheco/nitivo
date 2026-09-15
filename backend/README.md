@@ -1,14 +1,15 @@
 # Aplicação do Nitivo
 
 Monólito modular do Nitivo: API NestJS, interface React/Vite e PostgreSQL. Os
-sete primeiros incrementos permitem ao operador provisionar uma lavação, ao
+dez primeiros incrementos permitem ao operador provisionar uma lavação, ao
 proprietário definir sua senha, administrar um catálogo persistido, convidar ou
 revogar funcionários, recuperar o acesso da equipe de forma assistida e publicar
 os serviços ativos com preço, duração e contato operacional. O proprietário
 também configura boxes, expediente semanal e políticas; o cliente consulta os
 horários disponíveis para um serviço no fuso da lavação, confirma a reserva e
 recebe um comprovante e pode abrir o resumo no WhatsApp da lavação. Proprietários
-e funcionários consultam a agenda diária e os próximos atendimentos.
+e funcionários consultam a agenda diária e os próximos atendimentos, corrigem
+os dados operacionais e registram encaixes disponíveis com autoria.
 
 ## Requisitos
 
@@ -166,7 +167,15 @@ dependem da conferência e do registro pela equipe no Nitivo.
   finalidade com mais de 24 horas são removidos na próxima tentativa.
 - `GET /api/car-washes/:carWashId/appointments?date=AAAA-MM-DD`: exige sessão e
   vínculo ativo OWNER/EMPLOYEE. Retorna o dia local solicitado (hoje por padrão)
-  e até 20 próximos confirmados a partir de agora, ordenados pelo início.
+  e até 20 próximos confirmados a partir de agora, ordenados pelo início, além
+  dos serviços ativos usados no formulário de encaixe.
+- `GET /api/car-washes/:carWashId/appointments/walk-in-availability`: consulta
+  horários para a equipe com as mesmas regras de expediente, duração, intervalo
+  e capacidade, sem aplicar a antecedência mínima do autoagendamento.
+- `POST /api/car-washes/:carWashId/appointments/walk-ins`: recebe serviço,
+  instante UTC, nome, telefone e placa; exige sessão OWNER/EMPLOYEE e CSRF.
+  Persiste cliente, veículo e encaixe na mesma transação, com origem `TEAM`,
+  autoria e o nome, preço e duração históricos do serviço.
   Comprovante e agenda usam `Cache-Control: no-store`.
 
 Confirmação e mudanças de expediente/desativação de box obtêm a mesma trava
@@ -179,11 +188,13 @@ preexistentes fazem a migration falhar e exigem conferência, sem apagar reserva
 
 As chaves estrangeiras compostas impedem relações entre tenants e entre um
 veículo e cliente incompatíveis. Nome/preço/duração do serviço ficam na reserva;
-a criação registra `PUBLIC` e seu instante, sem atribuir identidade autenticada.
+a criação pública registra `PUBLIC` e seu instante, sem atribuir identidade
+autenticada.
 Ocupações anteriores da issue #6 permanecem `LEGACY`, sem inventar cliente ou
-veículo. Novas reservas públicas exigem ambos no banco. Futuras operações de
-encaixe, reagendamento e alterações de catálogo devem respeitar o mesmo protocolo
-de concorrência antes de serem disponibilizadas.
+veículo. Novas reservas públicas e encaixes exigem ambos no banco. Encaixe e
+reserva pública usam a mesma trava e a mesma exclusion constraint, de modo que
+apenas uma disputa pelo mesmo box e intervalo é persistida. Reagendamento e
+novas alterações de disponibilidade devem respeitar esse protocolo.
 
 ## Verificações
 
@@ -213,4 +224,8 @@ escopo dos incrementos está nas issues
 [#4](https://github.com/kauepacheco/nitivo/issues/4),
 [#5](https://github.com/kauepacheco/nitivo/issues/5) e
 [#6](https://github.com/kauepacheco/nitivo/issues/6) e
-[#7](https://github.com/kauepacheco/nitivo/issues/7).
+[#7](https://github.com/kauepacheco/nitivo/issues/7),
+[#8](https://github.com/kauepacheco/nitivo/issues/8),
+[#9](https://github.com/kauepacheco/nitivo/issues/9),
+[#10](https://github.com/kauepacheco/nitivo/issues/10) e
+[#11](https://github.com/kauepacheco/nitivo/issues/11).

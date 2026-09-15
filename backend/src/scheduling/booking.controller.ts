@@ -11,6 +11,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -24,18 +25,21 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { AuthenticatedRequest } from '../identity-access/auth.types';
+import type { AuthenticatedRequest } from '../identity-access/auth.types';
 import { CsrfGuard } from '../identity-access/csrf.guard';
 import { SessionGuard } from '../identity-access/session.guard';
 import {
   AgendaDto,
+  AgendaAppointmentDto,
   AgendaQueryDto,
   BookingReceiptDto,
   CustomerVehicleDto,
   CreateBookingDto,
+  CreateWalkInDto,
   UpdateCustomerVehicleDto,
 } from './booking.dto';
 import { BookingService } from './booking.service';
+import { AvailabilityDto, AvailabilityQueryDto } from './scheduling.dto';
 
 @Injectable()
 export class BookingThrottleGuard implements CanActivate {
@@ -102,6 +106,40 @@ export class TeamAgendaController {
   @ApiOkResponse({ type: AgendaDto })
   get(@Param('carWashId') carWashId: string, @Query() query: AgendaQueryDto) {
     return this.bookings.agenda(carWashId, query.date);
+  }
+
+  @Get('walk-in-availability')
+  @Header('Cache-Control', 'no-store')
+  @ApiOkResponse({
+    type: AvailabilityDto,
+    description: 'Horários para encaixe, sem antecedência do autoagendamento',
+  })
+  getWalkInAvailability(
+    @Param('carWashId') carWashId: string,
+    @Query() query: AvailabilityQueryDto,
+  ) {
+    return this.bookings.getWalkInAvailability(carWashId, query);
+  }
+
+  @Post('walk-ins')
+  @UseGuards(CsrfGuard)
+  @Header('Cache-Control', 'no-store')
+  @ApiHeader({ name: 'x-csrf-token', required: true })
+  @ApiCreatedResponse({
+    type: AgendaAppointmentDto,
+    description: 'Encaixe confirmado com origem e autoria da equipe',
+  })
+  @ApiConflictResponse({ description: 'Horário indisponível' })
+  createWalkIn(
+    @Param('carWashId') carWashId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() input: CreateWalkInDto,
+  ) {
+    return this.bookings.createWalkIn(
+      carWashId,
+      request.authSession!.userId,
+      input,
+    );
   }
 
   @Patch(':appointmentId/customer-vehicle')
