@@ -189,8 +189,8 @@ As dependências representam entregas necessárias; dados fictícios permitem ve
 
 **Histórias da especificação:** 30, 31, 32, 38, 39, 40, 43.
 
-- [ ] Transições inválidas e retorno de estado final são recusados; mudança registra autoria e momento de forma consistente.
-- [ ] Atrasos e duração real não deslocam reservas futuras; testar disputas de atualização, papéis e isolamento.
+- [x] Transições inválidas e retorno de estado final são recusados; mudança registra autoria e momento de forma consistente.
+- [x] Atrasos e duração real não deslocam reservas futuras; testar disputas de atualização, papéis e isolamento.
 
 ## Issue #13 — Cancelar após conferência da solicitação
 

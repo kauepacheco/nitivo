@@ -4,14 +4,14 @@
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os dez primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os onze primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-[Issue #11](https://github.com/kauepacheco/nitivo/issues/11): registrar encaixe
-para início imediato ou outro horário disponível.
+[Issue #12](https://github.com/kauepacheco/nitivo/issues/12): iniciar, concluir
+e marcar falta em atendimentos.
 
 ## Concluído
 
@@ -135,21 +135,30 @@ para início imediato ou outro horário disponível.
 - testes HTTP com PostgreSQL real cobrem funcionário, isolamento, CSRF,
   preservação histórica e disputa concorrente com a reserva pública; a jornada
   móvel cobre a operação completa com dados fictícios.
+- equipe inicia atendimento confirmado, conclui atendimento em andamento e
+  registra falta de atendimento confirmado pela agenda, sem deslocar reservas
+  futuras;
+- cada transição persiste estado anterior, novo estado, autoria do vínculo e
+  instante; chaves compostas impedem histórico entre tenants distintos;
+- transições inválidas, retorno de estado final, CSRF ausente, sessão ausente,
+  outro tenant e disputa concorrente são recusados; proprietário e funcionário
+  ativo podem operar a agenda;
+- a agenda móvel mostra os estados em português e oferece somente as ações
+  permitidas para o estado atual; a jornada cobre iniciar e concluir um encaixe.
 
 ## Objetivo atual
 
-O GitHub foi consultado em 15 de setembro de 2026: a `main` remota está no merge
-`847aee2b`, que integra e encerra as issues #7–#10. O clone não conseguiu executar
-`git fetch` por falta da chave SSH. A `main` local avançou até `e86405b3`, pai
-desse merge e com a mesma árvore de conteúdo, antes da criação da branch atual.
+A referência local `origin/main` aponta para o merge `99c3d1f7`, que integra a
+issue #11. A `main` local foi atualizada por fast-forward até esse mesmo commit
+antes da branch atual. A sincronização remota não foi consultada nesta entrega.
 
-A issue #11 está implementada localmente na branch `feat/11-encaixe`, no commit
-`10c616ca`. Aguarda publicação e integração à `main`; não houve push nem
-alteração remota da issue nesta tarefa. O
+A issue #12 está implementada localmente na branch `feat/12-estados-atendimento`,
+no commit `e6db0916`. Aguarda publicação e integração à `main`; não houve push
+nem alteração remota da issue nesta tarefa. O
 [índice das issues](specs/tickets-primeiro-piloto-saas.md) distingue esses estados.
 
-Verificações finais da issue #11: lint, tipos e build passaram, assim como 1
-teste unitário, 49 testes HTTP com PostgreSQL real e 11 jornadas de navegador.
+Verificações finais da issue #12: lint, tipos e build passaram, assim como 1
+teste unitário, 51 testes HTTP com PostgreSQL real e 11 jornadas de navegador.
 
 A coleção de 37 skills permanece preservada conforme decisão do proprietário;
 detalhes em [Skills do Nitivo](../.agents/skills/README.md).
@@ -161,15 +170,15 @@ extraídas em `backend/.local/browser-libs`, ignoradas pelo Git.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação a [issue #12](https://github.com/kauepacheco/nitivo/issues/12):
-iniciar, concluir e marcar falta em atendimentos.
+Implementar em nova solicitação a [issue #13](https://github.com/kauepacheco/nitivo/issues/13):
+cancelar após conferência da solicitação.
 
 ## Pendências de execução
 
-- publicar e integrar a issue #11 conforme solicitação;
+- publicar e integrar a issue #12 conforme solicitação;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar as issues #12 a #23 em sequência;
+- implementar e verificar as issues #13 a #23 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 - sincronizar commits locais com o GitHub após solicitação explícita de push;
