@@ -143,10 +143,10 @@ O GitHub foi consultado em 15 de setembro de 2026: a `main` remota está no merg
 `git fetch` por falta da chave SSH. A `main` local avançou até `e86405b3`, pai
 desse merge e com a mesma árvore de conteúdo, antes da criação da branch atual.
 
-A issue #11 está implementada localmente na branch `feat/11-encaixe`. Aguarda
-publicação e integração à `main`; não houve push nem alteração remota da issue
-nesta tarefa. O [índice das issues](specs/tickets-primeiro-piloto-saas.md)
-distingue esses estados.
+A issue #11 está implementada localmente na branch `feat/11-encaixe`, no commit
+`10c616ca`. Aguarda publicação e integração à `main`; não houve push nem
+alteração remota da issue nesta tarefa. O
+[índice das issues](specs/tickets-primeiro-piloto-saas.md) distingue esses estados.
 
 Verificações finais da issue #11: lint, tipos e build passaram, assim como 1
 teste unitário, 49 testes HTTP com PostgreSQL real e 11 jornadas de navegador.

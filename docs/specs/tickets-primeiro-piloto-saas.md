@@ -28,7 +28,7 @@ remoto e com a mesma árvore integrada. A issue #11 permanece somente local.
 | [#8](https://github.com/kauepacheco/nitivo/issues/8) | Sim | Sim | Sim / Sim | Fechada | `585c88d1` |
 | [#9](https://github.com/kauepacheco/nitivo/issues/9) | Sim | Sim | Sim / Sim | Fechada | `219b0074`, `f41726d6` |
 | [#10](https://github.com/kauepacheco/nitivo/issues/10) | Sim | Sim | Sim / Sim | Fechada | `efd44a54`, `e86405b3` |
-| [#11](https://github.com/kauepacheco/nitivo/issues/11) | Sim | Não | Não / Não | Aberta; aguarda publicação | branch `feat/11-encaixe` |
+| [#11](https://github.com/kauepacheco/nitivo/issues/11) | Sim | Não | Não / Não | Aberta; aguarda publicação | `10c616ca` |
 | [#12](https://github.com/kauepacheco/nitivo/issues/12) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#13](https://github.com/kauepacheco/nitivo/issues/13) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#14](https://github.com/kauepacheco/nitivo/issues/14) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
