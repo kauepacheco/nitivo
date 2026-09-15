@@ -37,6 +37,16 @@ const agendaSelection = {
   createdBy: {
     select: { id: true, user: { select: { email: true } } },
   },
+  statusChanges: {
+    select: {
+      changedAt: true,
+      changedBy: {
+        select: { id: true, user: { select: { email: true } } },
+      },
+    },
+    orderBy: { changedAt: 'desc' },
+    take: 1,
+  },
   customer: { select: { name: true, phone: true } },
   vehicle: { select: { plate: true } },
   box: { select: { name: true } },
@@ -159,8 +169,8 @@ export class BookingService {
     return {
       date: day,
       timezone: carWash.timezone,
-      appointments,
-      upcoming,
+      appointments: appointments.map(toAgendaAppointment),
+      upcoming: upcoming.map(toAgendaAppointment),
       services,
     };
   }
@@ -202,7 +212,7 @@ export class BookingService {
             startsAt,
             'TEAM',
           );
-        return createAppointment(tx, {
+        return toAgendaAppointment(await createAppointment(tx, {
           carWashId,
           service,
           startsAt,
@@ -210,7 +220,7 @@ export class BookingService {
           customer: input,
           source: { origin: 'TEAM', createdByMembershipId: creator.id },
           unavailableMessage,
-        });
+        }));
       })
       .catch((error: unknown) => {
         if (error instanceof HttpException) throw error;
@@ -308,6 +318,56 @@ export class BookingService {
           'Não foi possível atualizar os dados do atendimento',
         );
       });
+  }
+
+  async changeStatus(
+    carWashId: string,
+    appointmentId: string,
+    changedByUserId: string,
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW',
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const membership = await tx.membership.findUnique({
+        where: {
+          userId_carWashId: { userId: changedByUserId, carWashId },
+        },
+        select: { id: true, status: true },
+      });
+      if (!membership || membership.status !== 'ACTIVE') {
+        throw new NotFoundException('Lavação não encontrada');
+      }
+      const appointment = await tx.appointment.findFirst({
+        where: { id: appointmentId, carWashId },
+        select: { id: true, status: true },
+      });
+      if (!appointment) throw new NotFoundException('Agendamento não encontrado');
+      if (!isAllowedStatusTransition(appointment.status, status)) {
+        throw new ConflictException('Transição de estado inválida');
+      }
+      const changedAt = new Date(Date.now());
+      const updated = await tx.appointment.updateMany({
+        where: { id: appointment.id, carWashId, status: appointment.status },
+        data: { status },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictException('Estado do atendimento foi atualizado por outra pessoa');
+      }
+      await tx.appointmentStatusChange.create({
+        data: {
+          appointmentId: appointment.id,
+          carWashId,
+          previousStatus: appointment.status,
+          status,
+          changedByMembershipId: membership.id,
+          changedAt,
+        },
+      });
+      const result = await tx.appointment.findUniqueOrThrow({
+        where: { id: appointment.id },
+        select: agendaSelection,
+      });
+      return toAgendaAppointment(result);
+    });
   }
 
   // Limite atômico: inclui sucessos, erros e reenvios, sem persistir endereço IP bruto.
@@ -418,6 +478,28 @@ async function createAppointment(
     },
     select: agendaSelection,
   });
+}
+
+function isAllowedStatusTransition(
+  current: 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW',
+  next: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW',
+) {
+  return (
+    (current === 'CONFIRMED' && (next === 'IN_PROGRESS' || next === 'NO_SHOW')) ||
+    (current === 'IN_PROGRESS' && next === 'COMPLETED')
+  );
+}
+
+function toAgendaAppointment(
+  appointment: Prisma.AppointmentGetPayload<{ select: typeof agendaSelection }>,
+) {
+  const [lastChange] = appointment.statusChanges;
+  return {
+    ...appointment,
+    statusChanges: undefined,
+    statusChangedAt: lastChange?.changedAt.toISOString() ?? null,
+    statusChangedBy: lastChange?.changedBy ?? null,
+  };
 }
 
 function receipt(

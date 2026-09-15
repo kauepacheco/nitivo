@@ -107,11 +107,13 @@ model Appointment {
   servicePriceInCents      Int
   serviceDurationInMinutes Int
   status                   AppointmentStatus @default(CONFIRMED)
+  statusChanges            AppointmentStatusChange[]
   createdAt                DateTime          @default(now()) @db.Timestamptz(3)
   box                      Box               @relation(fields: [boxId, carWashId], references: [id, carWashId], onDelete: Restrict)
   serviceOffering          ServiceOffering   @relation(fields: [serviceOfferingId, carWashId], references: [id, carWashId], onDelete: Restrict)
 
   @@unique([carWashId, attemptHash])
+  @@unique([id, carWashId])
   @@index([carWashId, startsAt, endsAt])
   @@index([boxId, startsAt, endsAt])
   @@index([createdByMembershipId, carWashId])
@@ -169,10 +171,27 @@ model Membership {
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   carWash             CarWash          @relation(fields: [carWashId], references: [id], onDelete: Cascade)
   appointmentsCreated Appointment[]
+  appointmentStatusChanges AppointmentStatusChange[]
 
   @@unique([userId, carWashId])
   @@unique([id, carWashId])
   @@index([carWashId, status])
+}
+
+model AppointmentStatusChange {
+  id                    String            @id @default(cuid())
+  appointmentId         String
+  carWashId             String
+  previousStatus        AppointmentStatus
+  status                AppointmentStatus
+  changedByMembershipId String
+  changedAt             DateTime          @default(now()) @db.Timestamptz(3)
+  appointment           Appointment       @relation(fields: [appointmentId, carWashId], references: [id, carWashId], onDelete: Restrict)
+  changedBy             Membership        @relation(fields: [changedByMembershipId, carWashId], references: [id, carWashId], onDelete: Restrict)
+
+  @@index([appointmentId, changedAt])
+  @@index([carWashId, changedAt])
+  @@index([changedByMembershipId, carWashId])
 }
 
 model AccessToken {

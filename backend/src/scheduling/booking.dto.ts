@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional, PickType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsOptional,
+  IsIn,
   IsString,
   IsUUID,
   Matches,
@@ -80,6 +81,12 @@ export class CreateWalkInDto extends PickType(CreateBookingDto, [
   'plate',
 ] as const) {}
 
+export class ChangeAppointmentStatusDto {
+  @ApiProperty({ enum: ['IN_PROGRESS', 'COMPLETED', 'NO_SHOW'] })
+  @IsIn(['IN_PROGRESS', 'COMPLETED', 'NO_SHOW'])
+  status!: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW';
+}
+
 export class BookingReceiptDto {
   @ApiProperty() id!: string;
   @ApiProperty() carWashName!: string;
@@ -127,6 +134,10 @@ export class AgendaAppointmentDto {
     nullable: true,
   })
   createdBy!: AgendaCreatorDto | null;
+  @ApiProperty({ type: AgendaCreatorDto, nullable: true })
+  statusChangedBy!: AgendaCreatorDto | null;
+  @ApiProperty({ nullable: true })
+  statusChangedAt!: string | null;
   @ApiProperty({ type: AgendaCustomerDto, nullable: true })
   customer!: AgendaCustomerDto | null;
   @ApiProperty({ type: AgendaVehicleDto, nullable: true })

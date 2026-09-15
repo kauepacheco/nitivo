@@ -462,6 +462,140 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     }
   });
 
+  it('permite à equipe iniciar, concluir ou marcar falta com autoria, sem mover a agenda', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const path = `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/status`;
+    const ownerB = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-lua',
+      email: 'dona.lua@example.test',
+    });
+
+    await request(app.getHttpServer())
+      .patch(path)
+      .send({ status: 'IN_PROGRESS' })
+      .expect(401);
+    await fixture.owner.agent.patch(path).send({ status: 'IN_PROGRESS' }).expect(403);
+    await ownerB.agent
+      .patch(path)
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send({ status: 'IN_PROGRESS' })
+      .expect(404);
+    await changeMembershipRole(database, 'lavacao-sol', 'EMPLOYEE');
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'IN_PROGRESS' })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          id: receipt.body.id,
+          status: 'IN_PROGRESS',
+          statusChangedBy: {
+            id: 'lavacao-sol-owner-membership',
+            user: { email: 'dona.sol@example.test' },
+          },
+        });
+        expect(response.body.statusChangedAt).toEqual(expect.any(String));
+      });
+
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'COMPLETED' })
+      .expect(200)
+      .expect((response) =>
+        expect(response.body).toEqual(expect.objectContaining({ status: 'COMPLETED' })),
+      );
+
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.appointments[0]).toMatchObject({
+      id: receipt.body.id,
+      status: 'COMPLETED',
+      startsAt: fixture.input.startsAt,
+      endsAt: '2026-09-11T13:00:00.000Z',
+    });
+
+    const absent = await fixture
+      .book({ ...fixture.input, attemptId: randomUUID(), startsAt: '2026-09-11T13:00:00.000Z' })
+      .expect(201);
+    await fixture.owner.agent
+      .patch(`/api/car-washes/lavacao-sol/appointments/${absent.body.id}/status`)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'NO_SHOW' })
+      .expect(200)
+      .expect((response) =>
+        expect(response.body).toEqual(expect.objectContaining({ status: 'NO_SHOW' })),
+      );
+
+    const client = database.client();
+    await client.connect();
+    try {
+      await expect(
+        client.query(
+          'INSERT INTO "AppointmentStatusChange" (id, "appointmentId", "carWashId", "previousStatus", status, "changedByMembershipId") VALUES ($1, $2, $3, $4, $5, $6)',
+          [
+            'mudanca-cruzada',
+            receipt.body.id,
+            'lavacao-lua',
+            'CONFIRMED',
+            'IN_PROGRESS',
+            'lavacao-lua-owner-membership',
+          ],
+        ),
+      ).rejects.toMatchObject({ code: '23503' });
+    } finally {
+      await client.end();
+    }
+
+    const openApi = await request(app.getHttpServer()).get('/docs-json').expect(200);
+    expect(
+      openApi.body.paths['/api/car-washes/{carWashId}/appointments/{appointmentId}/status']
+        .patch.responses,
+    ).toMatchObject({
+      200: { description: 'Estado do atendimento atualizado com autoria e momento' },
+      409: { description: 'Transição de estado inválida' },
+    });
+  });
+
+  it('recusa transições inválidas, estado final e disputa de atualização', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const path = `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/status`;
+
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'COMPLETED' })
+      .expect(409);
+
+    const [started, absent] = await Promise.all([
+      fixture.owner.agent
+        .patch(path)
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({ status: 'IN_PROGRESS' }),
+      fixture.owner.agent
+        .patch(path)
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({ status: 'NO_SHOW' }),
+    ]);
+    expect([started.status, absent.status].sort()).toEqual([200, 409]);
+
+    const finalStatus = started.status === 200 ? 'COMPLETED' : 'NO_SHOW';
+    if (finalStatus === 'COMPLETED') {
+      await fixture.owner.agent
+        .patch(path)
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({ status: 'COMPLETED' })
+        .expect(200);
+    }
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'IN_PROGRESS' })
+      .expect(409);
+  });
+
   it('permite à equipe corrigir cliente e veículo e mostra a correção na agenda', async () => {
     const fixture = await bookingFixture();
     const receipt = await fixture.book().expect(201);

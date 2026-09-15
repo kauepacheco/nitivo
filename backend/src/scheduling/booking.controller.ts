@@ -33,6 +33,7 @@ import {
   AgendaAppointmentDto,
   AgendaQueryDto,
   BookingReceiptDto,
+  ChangeAppointmentStatusDto,
   CustomerVehicleDto,
   CreateBookingDto,
   CreateWalkInDto,
@@ -157,5 +158,29 @@ export class TeamAgendaController {
     @Body() input: UpdateCustomerVehicleDto,
   ) {
     return this.bookings.updateCustomerVehicle(carWashId, appointmentId, input);
+  }
+
+  @Patch(':appointmentId/status')
+  @UseGuards(CsrfGuard)
+  @Header('Cache-Control', 'no-store')
+  @ApiHeader({ name: 'x-csrf-token', required: true })
+  @ApiOkResponse({
+    type: AgendaAppointmentDto,
+    description: 'Estado do atendimento atualizado com autoria e momento',
+  })
+  @ApiConflictResponse({ description: 'Transição de estado inválida' })
+  @ApiNotFoundResponse({ description: 'Agendamento não encontrado' })
+  changeStatus(
+    @Param('carWashId') carWashId: string,
+    @Param('appointmentId') appointmentId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() input: ChangeAppointmentStatusDto,
+  ) {
+    return this.bookings.changeStatus(
+      carWashId,
+      appointmentId,
+      request.authSession!.userId,
+      input.status,
+    );
   }
 }

@@ -233,6 +233,8 @@ type Appointment = {
   vehicle: { plate: string } | null;
   box: { name: string };
 };
+
+type NextAppointmentStatus = 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW';
 type TeamService = {
   id: string;
   name: string;
@@ -389,6 +391,42 @@ export function TeamAgenda({
       return true;
     }
   }
+
+  async function changeStatus(
+    appointmentId: string,
+    status: NextAppointmentStatus,
+  ) {
+    const targetAgendaView = agendaView;
+    try {
+      await api(`/api/car-washes/${carWashId}/appointments/${appointmentId}/status`, {
+        method: 'PATCH',
+        headers: { 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ status }),
+      });
+    } catch (error) {
+      if (activeAgendaView.current === targetAgendaView)
+        setMessage(errorMessage(error));
+      return false;
+    }
+    if (activeAgendaView.current !== targetAgendaView) return true;
+    try {
+      const query = date ? `?date=${encodeURIComponent(date)}` : '';
+      const refreshed = await api<Agenda>(
+        `/api/car-washes/${carWashId}/appointments${query}`,
+      );
+      if (activeAgendaView.current === targetAgendaView) {
+        setAgenda(refreshed);
+        setMessage(statusMessage(status));
+      }
+    } catch (error) {
+      if (activeAgendaView.current === targetAgendaView) {
+        setMessage(
+          `${statusMessage(status)} A agenda não foi recarregada: ${errorMessage(error)}`,
+        );
+      }
+    }
+    return true;
+  }
   return (
     <section className="panel">
       <h2>Agenda da equipe</h2>
@@ -498,6 +536,7 @@ export function TeamAgenda({
               appointments={agenda.appointments}
               timezone={agenda.timezone}
               onUpdate={updateCustomerVehicle}
+              onChangeStatus={changeStatus}
             />
           </section>
           <section aria-label="Próximos atendimentos">
@@ -507,6 +546,7 @@ export function TeamAgenda({
               appointments={agenda.upcoming}
               timezone={agenda.timezone}
               onUpdate={updateCustomerVehicle}
+              onChangeStatus={changeStatus}
             />
           </section>
         </>
@@ -519,12 +559,17 @@ function AppointmentList({
   appointments,
   timezone,
   onUpdate,
+  onChangeStatus,
 }: {
   appointments: Appointment[];
   timezone: string;
   onUpdate: (
     appointmentId: string,
     input: CustomerVehicleInput,
+  ) => Promise<boolean>;
+  onChangeStatus: (
+    appointmentId: string,
+    status: NextAppointmentStatus,
   ) => Promise<boolean>;
 }) {
   const [editingAppointmentId, setEditingAppointmentId] = useState<
@@ -545,11 +590,11 @@ function AppointmentList({
             {appointment.serviceName} · {appointment.serviceDurationInMinutes}{' '}
             min · {formatMoney(appointment.servicePriceInCents)}
           </p>
-          <p>
-            {appointment.status === 'CONFIRMED'
-              ? 'Confirmado'
-              : appointment.status}
-          </p>
+          <p>{statusLabel(appointment.status)}</p>
+          <AppointmentStatusActions
+            appointment={appointment}
+            onChangeStatus={onChangeStatus}
+          />
           {appointment.origin === 'TEAM' ? (
             <p>
               Encaixe da equipe
@@ -587,6 +632,71 @@ function AppointmentList({
         </li>
       ))}
     </ul>
+  );
+}
+
+function AppointmentStatusActions({
+  appointment,
+  onChangeStatus,
+}: {
+  appointment: Appointment;
+  onChangeStatus: (
+    appointmentId: string,
+    status: NextAppointmentStatus,
+  ) => Promise<boolean>;
+}) {
+  const [pending, setPending] = useState(false);
+  const action = (status: NextAppointmentStatus) => async () => {
+    setPending(true);
+    await onChangeStatus(appointment.id, status);
+    setPending(false);
+  };
+  if (appointment.status === 'CONFIRMED') {
+    return (
+      <div className="service-actions">
+        <button type="button" disabled={pending} onClick={action('IN_PROGRESS')}>
+          Iniciar atendimento
+        </button>
+        <button
+          type="button"
+          className="secondary inline-button"
+          disabled={pending}
+          onClick={action('NO_SHOW')}
+        >
+          Marcar falta
+        </button>
+      </div>
+    );
+  }
+  if (appointment.status === 'IN_PROGRESS') {
+    return (
+      <button type="button" disabled={pending} onClick={action('COMPLETED')}>
+        Concluir atendimento
+      </button>
+    );
+  }
+  return null;
+}
+
+function statusLabel(status: string) {
+  return (
+    {
+      CONFIRMED: 'Confirmado',
+      IN_PROGRESS: 'Em andamento',
+      COMPLETED: 'Concluído',
+      CANCELED: 'Cancelado',
+      NO_SHOW: 'Falta registrada',
+    }[status] ?? status
+  );
+}
+
+function statusMessage(status: NextAppointmentStatus) {
+  return (
+    {
+      IN_PROGRESS: 'Atendimento iniciado.',
+      COMPLETED: 'Atendimento concluído.',
+      NO_SHOW: 'Falta registrada.',
+    }[status]
   );
 }
 

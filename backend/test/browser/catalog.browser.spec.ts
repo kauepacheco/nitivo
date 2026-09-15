@@ -415,6 +415,12 @@ test('equipe registra encaixe pela agenda no celular', async ({ page }) => {
   await expect(appointment).toContainText('Lavagem expressa');
   await expect(appointment).toContainText('Encaixe da equipe');
   await expect(appointment).toContainText('Placa: DEF4G56');
+  await appointment.getByRole('button', { name: 'Iniciar atendimento' }).click();
+  await expect(page.getByText('Atendimento iniciado.')).toBeVisible();
+  await expect(appointment).toContainText('Em andamento');
+  await appointment.getByRole('button', { name: 'Concluir atendimento' }).click();
+  await expect(page.getByText('Atendimento concluído.')).toBeVisible();
+  await expect(appointment).toContainText('Concluído');
 });
 
 const weekdayLabels = [
