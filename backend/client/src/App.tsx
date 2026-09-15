@@ -636,6 +636,7 @@ function OwnerWorkspace({
   );
   const [message, setMessage] = useState('');
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [agendaCatalogRevision, setAgendaCatalogRevision] = useState(0);
 
   useEffect(() => {
     void api<ServiceOffering[]>(
@@ -690,6 +691,7 @@ function OwnerWorkspace({
         },
       );
       setServices((current) => [...current, service]);
+      setAgendaCatalogRevision((current) => current + 1);
       setMessage('Serviço cadastrado.');
       formElement.reset();
     } catch (error) {
@@ -717,6 +719,7 @@ function OwnerWorkspace({
           candidate.id === service.id ? service : candidate,
         ),
       );
+      setAgendaCatalogRevision((current) => current + 1);
       setEditingServiceId(null);
       setMessage('Serviço atualizado.');
     } catch (error) {
@@ -827,6 +830,7 @@ function OwnerWorkspace({
       <TeamAgenda
         carWashId={membership.carWashId}
         csrfToken={session.csrfToken}
+        catalogRevision={agendaCatalogRevision}
       />
       <SchedulingManagement session={session} membership={membership} />
       <TeamManagement session={session} membership={membership} />

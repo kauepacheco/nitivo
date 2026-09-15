@@ -7,7 +7,7 @@ A solução permite que donos de lava-jatos gerenciem seus negócios de forma f�
 O objetivo atual é construir e validar um SaaS comercial. O aprendizado de
 programação deixou de ser uma condição para o avanço do projeto.
 
-Os nove primeiros incrementos do piloto já entregam acesso assistido do
+Os dez primeiros incrementos do piloto já entregam acesso assistido do
 proprietário, cadastro persistido de serviços, gestão dos vínculos da equipe e
 recuperação assistida de acesso, além da página pública com serviços ativos e
 contato operacional da lavação. Também incluem configuração de capacidade e
@@ -16,6 +16,8 @@ agenda diária da equipe e abertura do resumo no WhatsApp da lavação. O
 proprietário também pode editar e desativar serviços sem alterar os dados
 históricos preservados nas reservas existentes. Proprietários e funcionários
 podem corrigir pela agenda o nome, o telefone e a placa usados na operação.
+Também podem consultar horários e registrar encaixes com autoria, sem aplicar a
+antecedência reservada ao autoagendamento.
 As funcionalidades abaixo descrevem o produto
 planejado; o estado de implementação está no
 [marco atual](docs/CURRENT_MILESTONE.md).
@@ -31,7 +33,7 @@ planejado; o estado de implementação está no
 O recorte do primeiro piloto está consolidado no
 [planejamento do SaaS](docs/SAAS_PLAN.md), aprovado pelo proprietário com sua
 proposta técnica e cronograma estimado. Os tickets são implementados em sequência;
-as issues #2–#10 estão implementadas localmente e as seguintes aguardam novas
+as issues #2–#11 estão implementadas localmente e as seguintes aguardam novas
 solicitações. O [índice das issues](docs/specs/tickets-primeiro-piloto-saas.md)
 distingue implementação, publicação do código e integração à `main`.
 As decisões confirmadas para o produto

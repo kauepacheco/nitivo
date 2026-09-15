@@ -9,7 +9,11 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { hashSecret } from '../identity-access/hash-secret';
-import { CreateBookingDto, UpdateCustomerVehicleDto } from './booking.dto';
+import {
+  CreateBookingDto,
+  CreateWalkInDto,
+  UpdateCustomerVehicleDto,
+} from './booking.dto';
 import {
   addDays,
   isRealDate,
@@ -18,6 +22,7 @@ import {
   lockScheduling,
   SchedulingService,
 } from './scheduling.service';
+import { AvailabilityQueryDto } from './scheduling.dto';
 
 const agendaSelection = {
   id: true,
@@ -29,6 +34,9 @@ const agendaSelection = {
   status: true,
   origin: true,
   createdAt: true,
+  createdBy: {
+    select: { id: true, user: { select: { email: true } } },
+  },
   customer: { select: { name: true, phone: true } },
   vehicle: { select: { plate: true } },
   box: { select: { name: true } },
@@ -42,13 +50,7 @@ export class BookingService {
   ) {}
 
   async confirm(slug: string, input: CreateBookingDto) {
-    const startsAt = new Date(input.startsAt);
-    if (
-      Number.isNaN(startsAt.getTime()) ||
-      startsAt.toISOString() !== input.startsAt
-    ) {
-      throw new BadRequestException('Horário inválido');
-    }
+    const startsAt = parseStartsAt(input.startsAt);
     return this.prisma
       .$transaction(async (tx) => {
         const tenant = await tx.carWash.findUnique({
@@ -86,72 +88,22 @@ export class BookingService {
           }
           return receipt(previous, carWash);
         }
-        const availability = await this.scheduling.getAvailability(
-          slug,
-          {
-            serviceId: input.serviceId,
-            date: localDate(startsAt, carWash.timezone),
-          },
-          tx,
-        );
-        const slot = availability.slots.find(
-          (candidate) => candidate.startsAt === input.startsAt,
-        );
-        if (!slot)
-          throw new ConflictException(
-            'Horário indisponível. Consulte os horários novamente',
-          );
-        const endsAt = new Date(slot.endsAt);
-        const service = await tx.serviceOffering.findUniqueOrThrow({
-          where: {
-            id_carWashId: { id: input.serviceId, carWashId: carWash.id },
-          },
-        });
-        const box = await tx.box.findFirst({
-          where: {
-            carWashId: carWash.id,
-            active: true,
-            appointments: {
-              none: {
-                status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
-                startsAt: { lt: endsAt },
-                endsAt: { gt: startsAt },
-              },
-            },
-          },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        });
-        if (!box)
-          throw new ConflictException(
-            'Horário indisponível. Consulte os horários novamente',
-          );
-        const customer = await tx.customer.create({
-          data: { carWashId: carWash.id, name: input.name, phone: input.phone },
-        });
-        const vehicle = await tx.vehicle.create({
-          data: {
-            carWashId: carWash.id,
-            customerId: customer.id,
-            plate: input.plate,
-          },
-        });
-        const appointment = await tx.appointment.create({
-          data: {
-            carWashId: carWash.id,
-            boxId: box.id,
-            serviceOfferingId: service.id,
-            customerId: customer.id,
-            vehicleId: vehicle.id,
-            origin: 'PUBLIC',
-            attemptHash,
-            requestHash,
+        const { endsAt, service, unavailableMessage } =
+          await this.resolveAppointmentSlot(
+            tx,
+            carWash,
+            input,
             startsAt,
-            endsAt,
-            serviceName: service.name,
-            servicePriceInCents: service.priceInCents,
-            serviceDurationInMinutes: service.durationInMinutes,
-            createdAt: new Date(Date.now()),
-          },
+            'PUBLIC',
+          );
+        const appointment = await createAppointment(tx, {
+          carWashId: carWash.id,
+          service,
+          startsAt,
+          endsAt,
+          customer: input,
+          source: { origin: 'PUBLIC', attemptHash, requestHash },
+          unavailableMessage,
         });
         return receipt(appointment, carWash);
       })
@@ -171,7 +123,7 @@ export class BookingService {
     });
     const day = date ?? localDate(new Date(Date.now()), carWash.timezone);
     if (!isRealDate(day)) throw new BadRequestException('Data inválida');
-    const [appointments, upcoming] = await Promise.all([
+    const [appointments, upcoming, services] = await Promise.all([
       this.prisma.appointment.findMany({
         where: {
           carWashId,
@@ -193,8 +145,122 @@ export class BookingService {
         orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
         take: 20,
       }),
+      this.prisma.serviceOffering.findMany({
+        where: { carWashId, active: true },
+        select: {
+          id: true,
+          name: true,
+          priceInCents: true,
+          durationInMinutes: true,
+        },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      }),
     ]);
-    return { date: day, timezone: carWash.timezone, appointments, upcoming };
+    return {
+      date: day,
+      timezone: carWash.timezone,
+      appointments,
+      upcoming,
+      services,
+    };
+  }
+
+  async getWalkInAvailability(carWashId: string, query: AvailabilityQueryDto) {
+    const carWash = await this.prisma.carWash.findUniqueOrThrow({
+      where: { id: carWashId },
+      select: { slug: true },
+    });
+    return this.scheduling.getWalkInAvailability(carWash.slug, query);
+  }
+
+  async createWalkIn(
+    carWashId: string,
+    createdByUserId: string,
+    input: CreateWalkInDto,
+  ) {
+    const startsAt = parseStartsAt(input.startsAt);
+    return this.prisma
+      .$transaction(async (tx) => {
+        await lockScheduling(tx, carWashId);
+        const creator = await tx.membership.findUnique({
+          where: {
+            userId_carWashId: { userId: createdByUserId, carWashId },
+          },
+          select: { id: true, status: true },
+        });
+        if (!creator || creator.status !== 'ACTIVE') {
+          throw new NotFoundException('Lavação não encontrada');
+        }
+        const carWash = await tx.carWash.findUniqueOrThrow({
+          where: { id: carWashId },
+        });
+        const { endsAt, service, unavailableMessage } =
+          await this.resolveAppointmentSlot(
+            tx,
+            carWash,
+            input,
+            startsAt,
+            'TEAM',
+          );
+        return createAppointment(tx, {
+          carWashId,
+          service,
+          startsAt,
+          endsAt,
+          customer: input,
+          source: { origin: 'TEAM', createdByMembershipId: creator.id },
+          unavailableMessage,
+        });
+      })
+      .catch((error: unknown) => {
+        if (error instanceof HttpException) throw error;
+        throw new ServiceUnavailableException(
+          'Não foi possível registrar o encaixe',
+        );
+      });
+  }
+
+  private async resolveAppointmentSlot(
+    tx: Prisma.TransactionClient,
+    carWash: { id: string; slug: string; timezone: string },
+    input: { serviceId: string; startsAt: string },
+    startsAt: Date,
+    origin: 'PUBLIC' | 'TEAM',
+  ) {
+    const query = {
+      serviceId: input.serviceId,
+      date: localDate(startsAt, carWash.timezone),
+    };
+    const policy =
+      origin === 'PUBLIC'
+        ? {
+            availability: () =>
+              this.scheduling.getAvailability(carWash.slug, query, tx),
+            unavailableMessage:
+              'Horário indisponível. Consulte os horários novamente',
+          }
+        : {
+            availability: () =>
+              this.scheduling.getWalkInAvailability(carWash.slug, query, tx),
+            unavailableMessage: 'Horário indisponível',
+          };
+    const availability = await policy.availability();
+    const slot = availability.slots.find(
+      (candidate) => candidate.startsAt === input.startsAt,
+    );
+    if (!slot) {
+      throw new ConflictException(policy.unavailableMessage);
+    }
+    const service = await tx.serviceOffering.findUniqueOrThrow({
+      where: {
+        id_carWashId: { id: input.serviceId, carWashId: carWash.id },
+      },
+    });
+    return {
+      endsAt: new Date(slot.endsAt),
+      service,
+      unavailableMessage: policy.unavailableMessage,
+    };
   }
 
   async updateCustomerVehicle(
@@ -277,6 +343,81 @@ export class BookingService {
       });
     });
   }
+}
+
+function parseStartsAt(value: string) {
+  const startsAt = new Date(value);
+  if (Number.isNaN(startsAt.getTime()) || startsAt.toISOString() !== value) {
+    throw new BadRequestException('Horário inválido');
+  }
+  return startsAt;
+}
+
+async function createAppointment(
+  tx: Prisma.TransactionClient,
+  input: {
+    carWashId: string;
+    service: {
+      id: string;
+      name: string;
+      priceInCents: number;
+      durationInMinutes: number;
+    };
+    startsAt: Date;
+    endsAt: Date;
+    customer: { name: string; phone: string; plate: string };
+    source:
+      | { origin: 'PUBLIC'; attemptHash: string; requestHash: string }
+      | { origin: 'TEAM'; createdByMembershipId: string };
+    unavailableMessage: string;
+  },
+) {
+  const box = await tx.box.findFirst({
+    where: {
+      carWashId: input.carWashId,
+      active: true,
+      appointments: {
+        none: {
+          status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+          startsAt: { lt: input.endsAt },
+          endsAt: { gt: input.startsAt },
+        },
+      },
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  });
+  if (!box) throw new ConflictException(input.unavailableMessage);
+  const customer = await tx.customer.create({
+    data: {
+      carWashId: input.carWashId,
+      name: input.customer.name,
+      phone: input.customer.phone,
+    },
+  });
+  const vehicle = await tx.vehicle.create({
+    data: {
+      carWashId: input.carWashId,
+      customerId: customer.id,
+      plate: input.customer.plate,
+    },
+  });
+  return tx.appointment.create({
+    data: {
+      carWashId: input.carWashId,
+      boxId: box.id,
+      serviceOfferingId: input.service.id,
+      customerId: customer.id,
+      vehicleId: vehicle.id,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      serviceName: input.service.name,
+      servicePriceInCents: input.service.priceInCents,
+      serviceDurationInMinutes: input.service.durationInMinutes,
+      createdAt: new Date(Date.now()),
+      ...input.source,
+    },
+    select: agendaSelection,
+  });
 }
 
 function receipt(

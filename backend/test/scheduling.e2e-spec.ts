@@ -290,6 +290,178 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     ]);
   });
 
+  it('permite ao funcionário registrar encaixe imediato com autoria e histórico do serviço', async () => {
+    const fixture = await bookingFixture();
+    await changeMembershipRole(database, 'lavacao-sol', 'EMPLOYEE');
+    const publicAvailability = await request(app.getHttpServer())
+      .get('/api/public/car-washes/lavacao-sol/availability')
+      .query({
+        serviceId: fixture.input.serviceId,
+        date: '2026-09-10',
+      })
+      .expect(200);
+    expect(publicAvailability.body.slots).not.toContainEqual({
+      startsAt: '2026-09-10T12:00:00.000Z',
+      endsAt: '2026-09-10T13:00:00.000Z',
+    });
+    const teamAvailability = await fixture.owner.agent
+      .get('/api/car-washes/lavacao-sol/appointments/walk-in-availability')
+      .query({
+        serviceId: fixture.input.serviceId,
+        date: '2026-09-10',
+      })
+      .expect(200);
+    expect(teamAvailability.body.slots).toContainEqual({
+      startsAt: '2026-09-10T12:00:00.000Z',
+      endsAt: '2026-09-10T13:00:00.000Z',
+    });
+    const walkIn = await fixture.owner.agent
+      .post('/api/car-washes/lavacao-sol/appointments/walk-ins')
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        serviceId: fixture.input.serviceId,
+        startsAt: '2026-09-10T12:00:00.000Z',
+        name: 'Cliente de Balcão',
+        phone: '11988880001',
+        plate: 'DEF4G56',
+      })
+      .expect(201);
+
+    expect(walkIn.body).toMatchObject({
+      status: 'CONFIRMED',
+      origin: 'TEAM',
+      serviceName: 'Lavagem completa',
+      servicePriceInCents: 7500,
+      serviceDurationInMinutes: 60,
+      startsAt: '2026-09-10T12:00:00.000Z',
+      endsAt: '2026-09-10T13:00:00.000Z',
+      customer: { name: 'Cliente de Balcão', phone: '11988880001' },
+      vehicle: { plate: 'DEF4G56' },
+      createdBy: {
+        id: 'lavacao-sol-owner-membership',
+        user: { email: 'dona.sol@example.test' },
+      },
+    });
+
+    await fixture
+      .book({
+        ...fixture.input,
+        attemptId: randomUUID(),
+        startsAt: '2026-09-10T12:00:00.000Z',
+      })
+      .expect(409);
+    const agenda = await fixture.owner.agent
+      .get('/api/car-washes/lavacao-sol/appointments')
+      .query({ date: '2026-09-10' })
+      .expect(200);
+    expect(agenda.body.appointments).toEqual([
+      expect.objectContaining({ id: walkIn.body.id, origin: 'TEAM' }),
+    ]);
+
+    await changeMembershipRole(database, 'lavacao-sol', 'OWNER');
+    await fixture.owner.agent
+      .patch(`/api/car-washes/lavacao-sol/services/${fixture.input.serviceId}`)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        name: 'Lavagem premium',
+        priceInCents: 9900,
+        durationInMinutes: 90,
+        active: true,
+      })
+      .expect(200);
+    const preserved = await fixture.owner.agent
+      .get('/api/car-washes/lavacao-sol/appointments')
+      .query({ date: '2026-09-10' })
+      .expect(200);
+    expect(preserved.body.appointments[0]).toMatchObject({
+      serviceName: 'Lavagem completa',
+      servicePriceInCents: 7500,
+      serviceDurationInMinutes: 60,
+    });
+
+    const openApi = await request(app.getHttpServer())
+      .get('/docs-json')
+      .expect(200);
+    expect(
+      openApi.body.paths[
+        '/api/car-washes/{carWashId}/appointments/walk-in-availability'
+      ].get.responses[200].description,
+    ).toBe('Horários para encaixe, sem antecedência do autoagendamento');
+    expect(
+      openApi.body.paths['/api/car-washes/{carWashId}/appointments/walk-ins']
+        .post.responses,
+    ).toMatchObject({
+      201: { description: 'Encaixe confirmado com origem e autoria da equipe' },
+      409: { description: 'Horário indisponível' },
+    });
+  });
+
+  it('isola o encaixe e serializa sua disputa com a reserva pública', async () => {
+    const fixture = await bookingFixture();
+    const ownerB = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-lua',
+      email: 'dona.lua@example.test',
+    });
+    const path = '/api/car-washes/lavacao-sol/appointments/walk-ins';
+    const walkInInput = {
+      serviceId: fixture.input.serviceId,
+      startsAt: fixture.input.startsAt,
+      name: 'Cliente de Balcão',
+      phone: '11988880001',
+      plate: 'DEF4G56',
+    };
+
+    await request(app.getHttpServer()).post(path).send(walkInInput).expect(401);
+    await fixture.owner.agent.post(path).send(walkInInput).expect(403);
+    await ownerB.agent
+      .post(path)
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send(walkInInput)
+      .expect(404);
+
+    const [walkIn, publicBooking] = await Promise.all([
+      fixture.owner.agent
+        .post(path)
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send(walkInInput),
+      fixture.book(),
+    ]);
+    expect([
+      [201, 409],
+      [409, 201],
+    ]).toContainEqual([walkIn.status, publicBooking.status]);
+
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.appointments).toHaveLength(1);
+    expect(agenda.body.appointments[0]).toMatchObject(
+      walkIn.status === 201
+        ? {
+            origin: 'TEAM',
+            createdBy: {
+              id: 'lavacao-sol-owner-membership',
+              user: { email: 'dona.sol@example.test' },
+            },
+          }
+        : { origin: 'PUBLIC', createdBy: null },
+    );
+
+    const client = database.client();
+    await client.connect();
+    try {
+      await expect(
+        client.query(
+          `UPDATE "Appointment"
+           SET origin = 'TEAM', "attemptHash" = NULL, "requestHash" = NULL,
+               "createdByMembershipId" = 'lavacao-lua-owner-membership'
+           WHERE id = $1`,
+          [agenda.body.appointments[0].id],
+        ),
+      ).rejects.toMatchObject({ code: '23503' });
+    } finally {
+      await client.end();
+    }
+  });
+
   it('permite à equipe corrigir cliente e veículo e mostra a correção na agenda', async () => {
     const fixture = await bookingFixture();
     const receipt = await fixture.book().expect(201);

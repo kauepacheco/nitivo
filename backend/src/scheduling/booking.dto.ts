@@ -72,6 +72,14 @@ export class UpdateCustomerVehicleDto extends PickType(CreateBookingDto, [
   'plate',
 ] as const) {}
 
+export class CreateWalkInDto extends PickType(CreateBookingDto, [
+  'serviceId',
+  'startsAt',
+  'name',
+  'phone',
+  'plate',
+] as const) {}
+
 export class BookingReceiptDto {
   @ApiProperty() id!: string;
   @ApiProperty() carWashName!: string;
@@ -97,6 +105,13 @@ export class CustomerVehicleDto {
   @ApiProperty({ type: AgendaCustomerDto }) customer!: AgendaCustomerDto;
   @ApiProperty({ type: AgendaVehicleDto }) vehicle!: AgendaVehicleDto;
 }
+export class AgendaCreatorUserDto {
+  @ApiProperty() email!: string;
+}
+export class AgendaCreatorDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ type: AgendaCreatorUserDto }) user!: AgendaCreatorUserDto;
+}
 export class AgendaAppointmentDto {
   @ApiProperty() id!: string;
   @ApiProperty() startsAt!: string;
@@ -107,17 +122,30 @@ export class AgendaAppointmentDto {
   @ApiProperty() status!: string;
   @ApiProperty() origin!: string;
   @ApiProperty() createdAt!: string;
+  @ApiProperty({
+    type: AgendaCreatorDto,
+    nullable: true,
+  })
+  createdBy!: AgendaCreatorDto | null;
   @ApiProperty({ type: AgendaCustomerDto, nullable: true })
   customer!: AgendaCustomerDto | null;
   @ApiProperty({ type: AgendaVehicleDto, nullable: true })
   vehicle!: AgendaVehicleDto | null;
   @ApiProperty({ example: { name: 'Box principal' } }) box!: { name: string };
 }
+export class AgendaServiceDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() priceInCents!: number;
+  @ApiProperty() durationInMinutes!: number;
+}
 export class AgendaDto {
   @ApiProperty() date!: string;
   @ApiProperty() timezone!: string;
   @ApiProperty({ type: [AgendaAppointmentDto] })
   appointments!: AgendaAppointmentDto[];
+  @ApiProperty({ type: [AgendaServiceDto] })
+  services!: AgendaServiceDto[];
   @ApiProperty({
     type: [AgendaAppointmentDto],
     description: 'Até 20 reservas confirmadas a partir de agora',

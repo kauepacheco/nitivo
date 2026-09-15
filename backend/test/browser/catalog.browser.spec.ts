@@ -367,6 +367,56 @@ test('proprietário configura capacidade e cliente consulta horários no celular
   ).not.toBeVisible();
 });
 
+test('equipe registra encaixe pela agenda no celular', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const setupLink = provisionOwner({
+    baseUrl,
+    carWashName: 'Lavação Horizonte',
+    slug: 'lavacao-horizonte',
+    email: 'dona.horizonte@example.test',
+  });
+  await page.goto(setupLink);
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Definir senha' }).click();
+  await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await page.getByLabel('Nome', { exact: true }).fill('Lavagem expressa');
+  await page.getByLabel('Preço (R$)').fill('45.00');
+  await page.getByLabel('Duração (min)').fill('60');
+  await page.getByRole('button', { name: 'Cadastrar serviço' }).click();
+  await page.getByLabel('Nome do box').fill('Box principal');
+  await page.getByRole('button', { name: 'Cadastrar box' }).click();
+  const date = futureDateInSaoPaulo(1);
+  const weekdayLabel = weekdayLabels[new Date(`${date}T12:00:00Z`).getUTCDay()];
+  await page.getByLabel(`${weekdayLabel} aberto`).check();
+  await page.getByRole('button', { name: 'Salvar agenda' }).click();
+
+  await page.getByLabel('Serviço do encaixe').selectOption({
+    label: 'Lavagem expressa — 60 min',
+  });
+  await page.getByLabel('Data do encaixe').fill(date);
+  await page.getByRole('button', { name: 'Consultar encaixes' }).click();
+  await page
+    .getByLabel('Horários para encaixe')
+    .getByRole('button', { name: '08:00' })
+    .click();
+  await page.getByLabel('Nome do cliente do encaixe').fill('Cliente de Balcão');
+  await page.getByLabel('Telefone do cliente do encaixe').fill('11988880001');
+  await page.getByLabel('Placa do veículo do encaixe').fill('DEF4G56');
+  await page.getByRole('button', { name: 'Registrar encaixe' }).click();
+
+  await expect(page.getByText('Encaixe registrado.')).toBeVisible();
+  const appointment = page
+    .getByLabel('Agenda diária')
+    .getByRole('listitem')
+    .filter({ hasText: 'Cliente de Balcão' });
+  await expect(appointment).toContainText('Lavagem expressa');
+  await expect(appointment).toContainText('Encaixe da equipe');
+  await expect(appointment).toContainText('Placa: DEF4G56');
+});
+
 const weekdayLabels = [
   'Domingo',
   'Segunda-feira',
