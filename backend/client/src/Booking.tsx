@@ -24,6 +24,20 @@ type BookingInput = {
   plate: string;
 };
 
+type CustomerVehicleInput = Pick<BookingInput, 'name' | 'phone' | 'plate'>;
+
+function normalizeName(value: FormDataEntryValue | null) {
+  return String(value).trim();
+}
+
+function normalizePhone(value: FormDataEntryValue | null) {
+  return String(value).replace(/\D/g, '');
+}
+
+function normalizePlate(value: FormDataEntryValue | null) {
+  return String(value).toUpperCase().replace(/[-\s]/g, '');
+}
+
 export function BookingForm({
   slug,
   serviceId,
@@ -56,9 +70,9 @@ export function BookingForm({
         attemptId: crypto.randomUUID(),
         serviceId,
         startsAt,
-        name: String(form.get('name')).trim(),
-        phone: String(form.get('phone')).replace(/\D/g, ''),
-        plate: String(form.get('plate')).toUpperCase().replace(/[-\s]/g, ''),
+        name: normalizeName(form.get('name')),
+        phone: normalizePhone(form.get('phone')),
+        plate: normalizePlate(form.get('plate')),
       };
     }
     submitting.current = true;
@@ -224,11 +238,20 @@ type Agenda = {
   upcoming: Appointment[];
 };
 
-export function TeamAgenda({ carWashId }: { carWashId: string }) {
+export function TeamAgenda({
+  carWashId,
+  csrfToken,
+}: {
+  carWashId: string;
+  csrfToken: string;
+}) {
   const [date, setDate] = useState('');
   const [agenda, setAgenda] = useState<Agenda | null>(null);
   const [message, setMessage] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const agendaView = `${carWashId}:${date}:${refresh}`;
+  const activeAgendaView = useRef(agendaView);
+  activeAgendaView.current = agendaView;
   useEffect(() => {
     let active = true;
     setAgenda(null);
@@ -248,6 +271,45 @@ export function TeamAgenda({ carWashId }: { carWashId: string }) {
       active = false;
     };
   }, [carWashId, date, refresh]);
+
+  async function updateCustomerVehicle(
+    appointmentId: string,
+    input: CustomerVehicleInput,
+  ) {
+    const targetAgendaView = agendaView;
+    try {
+      await api<Pick<Appointment, 'customer' | 'vehicle'>>(
+        `/api/car-washes/${carWashId}/appointments/${appointmentId}/customer-vehicle`,
+        {
+          method: 'PATCH',
+          headers: { 'x-csrf-token': csrfToken },
+          body: JSON.stringify(input),
+        },
+      );
+    } catch (error) {
+      if (activeAgendaView.current !== targetAgendaView) return false;
+      setMessage(errorMessage(error));
+      return false;
+    }
+    if (activeAgendaView.current !== targetAgendaView) return true;
+    try {
+      const query = date ? `?date=${encodeURIComponent(date)}` : '';
+      const refreshed = await api<Agenda>(
+        `/api/car-washes/${carWashId}/appointments${query}`,
+      );
+      if (activeAgendaView.current !== targetAgendaView) return true;
+      setAgenda(refreshed);
+      setMessage('Dados do atendimento atualizados.');
+      return true;
+    } catch (error) {
+      if (activeAgendaView.current === targetAgendaView) {
+        setMessage(
+          `Dados do atendimento atualizados, mas a agenda não foi recarregada: ${errorMessage(error)}`,
+        );
+      }
+      return true;
+    }
+  }
   return (
     <section className="panel">
       <h2>Agenda da equipe</h2>
@@ -271,6 +333,7 @@ export function TeamAgenda({ carWashId }: { carWashId: string }) {
             <AppointmentList
               appointments={agenda.appointments}
               timezone={agenda.timezone}
+              onUpdate={updateCustomerVehicle}
             />
           </section>
           <section aria-label="Próximos atendimentos">
@@ -279,6 +342,7 @@ export function TeamAgenda({ carWashId }: { carWashId: string }) {
             <AppointmentList
               appointments={agenda.upcoming}
               timezone={agenda.timezone}
+              onUpdate={updateCustomerVehicle}
             />
           </section>
         </>
@@ -290,10 +354,18 @@ export function TeamAgenda({ carWashId }: { carWashId: string }) {
 function AppointmentList({
   appointments,
   timezone,
+  onUpdate,
 }: {
   appointments: Appointment[];
   timezone: string;
+  onUpdate: (
+    appointmentId: string,
+    input: CustomerVehicleInput,
+  ) => Promise<boolean>;
 }) {
+  const [editingAppointmentId, setEditingAppointmentId] = useState<
+    string | null
+  >(null);
   if (!appointments.length) return <p>Nenhum atendimento neste período.</p>;
   return (
     <ul className="appointment-list">
@@ -320,11 +392,108 @@ function AppointmentList({
           {appointment.vehicle ? (
             <p>Placa: {appointment.vehicle.plate}</p>
           ) : null}
+          {appointment.customer && appointment.vehicle ? (
+            editingAppointmentId === appointment.id ? (
+              <CustomerVehicleForm
+                appointment={appointment}
+                onCancel={() => setEditingAppointmentId(null)}
+                onSubmit={async (input) => {
+                  if (await onUpdate(appointment.id, input))
+                    setEditingAppointmentId(null);
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="secondary inline-button"
+                onClick={() => setEditingAppointmentId(appointment.id)}
+              >
+                Corrigir cliente e veículo
+              </button>
+            )
+          ) : null}
         </li>
       ))}
     </ul>
   );
 }
+
+function CustomerVehicleForm({
+  appointment,
+  onCancel,
+  onSubmit,
+}: {
+  appointment: Appointment;
+  onCancel: () => void;
+  onSubmit: (input: CustomerVehicleInput) => Promise<void>;
+}) {
+  const [pending, setPending] = useState(false);
+  if (!appointment.customer || !appointment.vehicle) return null;
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setPending(true);
+    await onSubmit({
+      name: normalizeName(form.get('name')),
+      phone: normalizePhone(form.get('phone')),
+      plate: normalizePlate(form.get('plate')),
+    });
+    setPending(false);
+  }
+
+  return (
+    <form className="appointment-editor" onSubmit={submit}>
+      <fieldset disabled={pending}>
+        <label>
+          Nome do cliente
+          <input
+            name="name"
+            defaultValue={appointment.customer.name}
+            maxLength={100}
+            pattern=".*\S.*"
+            required
+          />
+        </label>
+        <label>
+          Telefone do cliente
+          <input
+            name="phone"
+            type="tel"
+            defaultValue={appointment.customer.phone}
+            pattern="[0-9 ()+\-]{10,22}"
+            maxLength={22}
+            required
+          />
+        </label>
+        <label>
+          Placa do veículo
+          <input
+            name="plate"
+            defaultValue={appointment.vehicle.plate}
+            maxLength={8}
+            pattern="[A-Za-z]{3}-?[0-9][A-Za-z0-9][0-9]{2}"
+            required
+          />
+        </label>
+      </fieldset>
+      <div className="service-actions">
+        <button type="submit" disabled={pending}>
+          {pending ? 'Salvando…' : 'Salvar dados do atendimento'}
+        </button>
+        <button
+          type="button"
+          className="secondary inline-button"
+          disabled={pending}
+          onClick={onCancel}
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function formatDate(instant: string, timezone: string) {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: timezone,

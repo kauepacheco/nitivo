@@ -290,6 +290,189 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     ]);
   });
 
+  it('permite à equipe corrigir cliente e veículo e mostra a correção na agenda', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const client = database.client();
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO "Appointment" (id, "carWashId", "customerId", "vehicleId", origin, "attemptHash", "requestHash", "boxId", "serviceOfferingId", "startsAt", "endsAt", "serviceName", "servicePriceInCents", "serviceDurationInMinutes", status)
+         SELECT 'agendamento-mesmo-cliente', "carWashId", "customerId", "vehicleId", origin, 'tentativa-mesmo-cliente', 'requisicao-mesmo-cliente', "boxId", "serviceOfferingId", "startsAt" + interval '1 hour', "endsAt" + interval '1 hour', "serviceName", "servicePriceInCents", "serviceDurationInMinutes", status
+         FROM "Appointment" WHERE id = $1`,
+        [receipt.body.id],
+      );
+    } finally {
+      await client.end();
+    }
+    await changeMembershipRole(database, 'lavacao-sol', 'EMPLOYEE');
+
+    await fixture.owner.agent
+      .patch(
+        `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/customer-vehicle`,
+      )
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        name: 'Cliente Corrigido',
+        phone: '11988880001',
+        plate: 'DEF4G56',
+      })
+      .expect(200)
+      .expect({
+        customer: { name: 'Cliente Corrigido', phone: '11988880001' },
+        vehicle: { plate: 'DEF4G56' },
+      });
+
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.appointments).toHaveLength(2);
+    for (const appointment of agenda.body.appointments) {
+      expect(appointment).toMatchObject({
+        customer: { name: 'Cliente Corrigido', phone: '11988880001' },
+        vehicle: { plate: 'DEF4G56' },
+      });
+    }
+
+    const openApi = await request(app.getHttpServer())
+      .get('/docs-json')
+      .expect(200);
+    const updateOperation =
+      openApi.body.paths[
+        '/api/car-washes/{carWashId}/appointments/{appointmentId}/customer-vehicle'
+      ].patch;
+    expect(updateOperation.responses).toMatchObject({
+      200: {
+        description: 'Dados operacionais de cliente e veículo corrigidos',
+        content: {
+          'application/json': {
+            schema: { $ref: '#/components/schemas/CustomerVehicleDto' },
+          },
+        },
+      },
+      404: { description: 'Agendamento não encontrado' },
+    });
+    expect(
+      updateOperation.requestBody.content['application/json'].schema,
+    ).toEqual({ $ref: '#/components/schemas/UpdateCustomerVehicleDto' });
+    expect(
+      openApi.body.components.schemas.UpdateCustomerVehicleDto,
+    ).toMatchObject({
+      required: ['name', 'phone', 'plate'],
+      properties: {
+        name: expect.any(Object),
+        phone: expect.any(Object),
+        plate: expect.any(Object),
+      },
+    });
+  });
+
+  it('isola a correção por sessão, CSRF e tenant sem criar acesso público', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const path = `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/customer-vehicle`;
+    const correction = {
+      name: 'Cliente Corrigido',
+      phone: '11988880001',
+      plate: 'DEF4G56',
+    };
+    const ownerB = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-lua',
+      email: 'dona.lua@example.test',
+    });
+
+    await request(app.getHttpServer()).patch(path).send(correction).expect(401);
+    await fixture.owner.agent.patch(path).send(correction).expect(403);
+    await ownerB.agent
+      .patch(path)
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send(correction)
+      .expect(404);
+    await ownerB.agent
+      .patch(
+        `/api/car-washes/lavacao-lua/appointments/${receipt.body.id}/customer-vehicle`,
+      )
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send(correction)
+      .expect(404);
+    await request(app.getHttpServer())
+      .patch(
+        `/api/public/car-washes/lavacao-sol/appointments/${receipt.body.id}/customer-vehicle`,
+      )
+      .send(correction)
+      .expect(404);
+
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.appointments[0]).toMatchObject({
+      customer: { name: 'Cliente Fictício', phone: '11999990001' },
+      vehicle: { plate: 'ABC1D23' },
+    });
+  });
+
+  it('desfaz toda a correção quando o veículo falha e responde sem dados do ORM', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const client = database.client();
+    await client.connect();
+    try {
+      await client.query(
+        `ALTER TABLE "Vehicle" ADD CONSTRAINT "test_reject_vehicle_correction" CHECK (plate <> 'DEF4G56')`,
+      );
+      await fixture.owner.agent
+        .patch(
+          `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/customer-vehicle`,
+        )
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({
+          name: 'Cliente Corrigido',
+          phone: '11988880001',
+          plate: 'DEF4G56',
+        })
+        .expect(503)
+        .expect({
+          message: 'Não foi possível atualizar os dados do atendimento',
+          error: 'Service Unavailable',
+          statusCode: 503,
+        });
+    } finally {
+      await client.query(
+        'ALTER TABLE "Vehicle" DROP CONSTRAINT "test_reject_vehicle_correction"',
+      );
+      await client.end();
+    }
+
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.appointments[0]).toMatchObject({
+      customer: { name: 'Cliente Fictício', phone: '11999990001' },
+      vehicle: { plate: 'ABC1D23' },
+    });
+  });
+
+  it('mantém um conjunto completo diante de correções concorrentes', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const path = `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/customer-vehicle`;
+    const corrections = [
+      { name: 'Cliente Um', phone: '11988880001', plate: 'DEF4G56' },
+      { name: 'Cliente Dois', phone: '11977770001', plate: 'HIJ7K89' },
+    ];
+
+    const responses = await Promise.all(
+      corrections.map((correction) =>
+        fixture.owner.agent
+          .patch(path)
+          .set('x-csrf-token', fixture.owner.csrfToken)
+          .send(correction),
+      ),
+    );
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+
+    const appointment = (await fixture.agenda().expect(200)).body
+      .appointments[0];
+    expect(responses.map((response) => response.body)).toContainEqual({
+      customer: appointment.customer,
+      vehicle: appointment.vehicle,
+    });
+  });
+
   async function bookingFixture(boxCount = 1) {
     const owner = await authenticatedOwner(database, app, {
       carWashId: 'lavacao-sol',

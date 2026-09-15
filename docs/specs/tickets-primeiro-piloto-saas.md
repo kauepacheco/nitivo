@@ -12,9 +12,10 @@ Nomes de migrations e commits históricos são preservados.
 “Publicado” nesta tabela significa código disponível no GitHub, não aplicação
 implantada. As especificações de todas as issues já estão publicadas. Critérios
 de estado e fluxo de atualização: [issue tracker](../agents/issue-tracker.md).
-Consulta remota em 14 de setembro de 2026 confirmou `main` em `d76b1415`.
-A integração local das issues #7 e #8 preserva os commits originais; seu envio
-continua pendente de solicitação explícita de push e acesso Git autenticado.
+Consulta remota em 14 de setembro de 2026 confirmou `main` em `b8d56c52` e a
+branch da issue #9 dois commits à frente. A integração local das issues #7–#9
+preserva os commits originais; atualizar a `main` remota continua pendente de
+solicitação explícita de push e acesso Git autenticado.
 
 | Issue | Implementado localmente | Código publicado | Integrado à main (local / GitHub) | Issue no GitHub | Evidência local |
 | --- | --- | --- | --- | --- | --- |
@@ -25,8 +26,8 @@ continua pendente de solicitação explícita de push e acesso Git autenticado.
 | [#6](https://github.com/kauepacheco/nitivo/issues/6) | Sim | Sim | Sim / Sim | Fechada | `58bab24f` |
 | [#7](https://github.com/kauepacheco/nitivo/issues/7) | Sim | Pendente | Sim / Não | Aberta; aguarda publicação | `a94a991a` |
 | [#8](https://github.com/kauepacheco/nitivo/issues/8) | Sim | Pendente | Sim / Não | Aberta; aguarda publicação | `585c88d1` |
-| [#9](https://github.com/kauepacheco/nitivo/issues/9) | Sim | Não | Não / Não | Aberta; aguarda publicação | `219b0074` |
-| [#10](https://github.com/kauepacheco/nitivo/issues/10) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
+| [#9](https://github.com/kauepacheco/nitivo/issues/9) | Sim | Sim | Sim / Não | Aberta; aguarda integração | `219b0074`, `f41726d6` |
+| [#10](https://github.com/kauepacheco/nitivo/issues/10) | Sim | Não | Não / Não | Aberta; aguarda publicação | commit desta entrega na `feat/10-correcao-cliente-veiculo` |
 | [#11](https://github.com/kauepacheco/nitivo/issues/11) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#12](https://github.com/kauepacheco/nitivo/issues/12) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#13](https://github.com/kauepacheco/nitivo/issues/13) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
@@ -162,8 +163,8 @@ As dependências representam entregas necessárias; dados fictícios permitem ve
 
 **Histórias da especificação:** 26, 29.
 
-- [ ] Autorização e integridade das relações impedem consulta, edição ou associação entre tenants; formulário público não ganha acesso a esses cadastros.
-- [ ] Correção persiste e aparece na operação; coleta permanece mínima e dados não são registrados em logs desnecessariamente.
+- [x] Autorização e integridade das relações impedem consulta, edição ou associação entre tenants; formulário público não ganha acesso a esses cadastros.
+- [x] Correção persiste e aparece na operação; coleta permanece mínima e dados não são registrados em logs desnecessariamente.
 
 ## Issue #11 — Registrar encaixe para início imediato
 

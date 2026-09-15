@@ -89,3 +89,17 @@ nome, telefone ou placa do cliente, credenciais ou dados de terceiros. O Nitivo
 não envia nem lê a mensagem e não trata a abertura da conversa como comprovação
 de envio, entrega, leitura ou posse do telefone informado. A reserva permanece
 confirmada até uma alteração ser registrada pela equipe.
+
+## Correção operacional implementada (issue #10)
+
+Proprietários e funcionários com vínculo ativo podem corrigir pela agenda apenas
+nome, telefone e placa. A operação exige sessão, autorização no tenant e CSRF,
+atualiza cliente e veículo na mesma transação e não aceita identificadores de
+cadastros no corpo, evitando reassociação entre lavações. O formulário público
+continua sem consulta ou edição desses dados.
+
+Falhas de persistência retornam mensagem genérica para que argumentos pessoais
+do ORM não cheguem ao logger HTTP. A resposta da correção contém somente nome,
+telefone e placa; a interface descarta respostas atrasadas depois de uma troca
+de lavação. Retenção e exercício de direitos continuam pendentes das issues
+específicas antes do uso de dados reais.

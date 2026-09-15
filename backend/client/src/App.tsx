@@ -609,7 +609,10 @@ function EmployeeHome({
         <h1>Acesso de funcionário</h1>
         <p>Consulte os atendimentos da sua lavação.</p>
       </section>
-      <TeamAgenda carWashId={membership.carWashId} />
+      <TeamAgenda
+        carWashId={membership.carWashId}
+        csrfToken={session.csrfToken}
+      />
     </main>
   );
 }
@@ -821,7 +824,10 @@ function OwnerWorkspace({
           )}
         </section>
       </div>
-      <TeamAgenda carWashId={membership.carWashId} />
+      <TeamAgenda
+        carWashId={membership.carWashId}
+        csrfToken={session.csrfToken}
+      />
       <SchedulingManagement session={session} membership={membership} />
       <TeamManagement session={session} membership={membership} />
     </main>

@@ -288,6 +288,83 @@ test('proprietário configura capacidade e cliente consulta horários no celular
     page.getByLabel('Próximos atendimentos').getByText('Cliente Fictício'),
   ).toBeVisible();
   await expect(page.getByLabel('Agenda diária').locator('li')).toHaveCount(1);
+
+  const dailyAppointment = page
+    .getByLabel('Agenda diária')
+    .getByRole('listitem');
+  await dailyAppointment
+    .getByRole('button', { name: 'Corrigir cliente e veículo' })
+    .click();
+  await dailyAppointment
+    .getByLabel('Nome do cliente')
+    .fill('Cliente Corrigido');
+  await dailyAppointment
+    .getByLabel('Telefone do cliente')
+    .fill('(11) 98888-0001');
+  await dailyAppointment.getByLabel('Placa do veículo').fill('DEF-4G56');
+  await dailyAppointment
+    .getByRole('button', { name: 'Salvar dados do atendimento' })
+    .click();
+
+  await expect(
+    page.getByText('Dados do atendimento atualizados.'),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Agenda diária').getByText('Cliente Corrigido'),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Próximos atendimentos').getByText('Cliente Corrigido'),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByLabel('Agenda diária')
+      .getByText('Telefone informado: 11988880001'),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Agenda diária').getByText('Placa: DEF4G56'),
+  ).toBeVisible();
+
+  let releaseCorrection!: () => void;
+  const heldCorrection = new Promise<void>((resolve) => {
+    releaseCorrection = resolve;
+  });
+  let correctionPersisted!: () => void;
+  const persisted = new Promise<void>((resolve) => {
+    correctionPersisted = resolve;
+  });
+  await page.route(
+    '**/api/car-washes/*/appointments/*/customer-vehicle',
+    async (route) => {
+      const response = await route.fetch();
+      correctionPersisted();
+      await heldCorrection;
+      await route.fulfill({ response });
+    },
+    { times: 1 },
+  );
+  await dailyAppointment
+    .getByRole('button', { name: 'Corrigir cliente e veículo' })
+    .click();
+  const correctionRequest = page.waitForRequest(
+    (request) =>
+      request.method() === 'PATCH' &&
+      request.url().endsWith('/customer-vehicle'),
+  );
+  await dailyAppointment
+    .getByRole('button', { name: 'Salvar dados do atendimento' })
+    .click();
+  await correctionRequest;
+  await persisted;
+  await page.getByLabel('Dia da agenda').fill(futureDateInSaoPaulo(2));
+  await expect(
+    page
+      .getByLabel('Agenda diária')
+      .getByText('Nenhum atendimento neste período.'),
+  ).toBeVisible();
+  releaseCorrection();
+  await expect(
+    page.getByLabel('Agenda diária').getByText('Cliente Corrigido'),
+  ).not.toBeVisible();
 });
 
 const weekdayLabels = [
