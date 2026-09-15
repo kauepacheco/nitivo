@@ -63,7 +63,7 @@ async function waitForHealth(url: string, child: ChildProcess) {
   throw new Error('A aplicação não iniciou a tempo');
 }
 
-test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular', async ({
+test('proprietário cadastra, edita e desativa um serviço no celular', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -117,6 +117,28 @@ test('proprietário ativa o acesso e cadastra seu primeiro serviço no celular',
   ).toBeVisible();
   await expect(page.getByText('90 min · Ativo')).toBeVisible();
   await expect(page.getByText('R$ 75,00')).toBeVisible();
+
+  const service = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Lavagem completa' });
+  await service.getByRole('button', { name: 'Editar' }).click();
+  await page.getByLabel('Nome do serviço').fill('Lavagem premium');
+  await page.getByLabel('Preço do serviço (R$)').fill('99.00');
+  await page.getByLabel('Duração do serviço (min)').fill('120');
+  await page.getByLabel('Serviço disponível').uncheck();
+  await page.getByRole('button', { name: 'Salvar alterações' }).click();
+
+  await expect(page.getByText('Serviço atualizado.')).toBeVisible();
+  const updatedService = page
+    .getByRole('listitem')
+    .filter({ hasText: 'Lavagem premium' });
+  await expect(
+    updatedService.getByText('Lavagem premium', { exact: true }),
+  ).toBeVisible();
+  await expect(updatedService.getByText('120 min · Inativo')).toBeVisible();
+  await expect(updatedService.getByText('R$ 99,00')).toBeVisible();
+  await page.goto(`${baseUrl}/lavacoes/lavacao-horizonte`);
+  await expect(page.getByText('Lavagem premium')).not.toBeVisible();
 });
 
 test('cliente consulta serviços ativos e contato da lavação no celular', async ({
@@ -266,6 +288,83 @@ test('proprietário configura capacidade e cliente consulta horários no celular
     page.getByLabel('Próximos atendimentos').getByText('Cliente Fictício'),
   ).toBeVisible();
   await expect(page.getByLabel('Agenda diária').locator('li')).toHaveCount(1);
+
+  const dailyAppointment = page
+    .getByLabel('Agenda diária')
+    .getByRole('listitem');
+  await dailyAppointment
+    .getByRole('button', { name: 'Corrigir cliente e veículo' })
+    .click();
+  await dailyAppointment
+    .getByLabel('Nome do cliente')
+    .fill('Cliente Corrigido');
+  await dailyAppointment
+    .getByLabel('Telefone do cliente')
+    .fill('(11) 98888-0001');
+  await dailyAppointment.getByLabel('Placa do veículo').fill('DEF-4G56');
+  await dailyAppointment
+    .getByRole('button', { name: 'Salvar dados do atendimento' })
+    .click();
+
+  await expect(
+    page.getByText('Dados do atendimento atualizados.'),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Agenda diária').getByText('Cliente Corrigido'),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Próximos atendimentos').getByText('Cliente Corrigido'),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByLabel('Agenda diária')
+      .getByText('Telefone informado: 11988880001'),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Agenda diária').getByText('Placa: DEF4G56'),
+  ).toBeVisible();
+
+  let releaseCorrection!: () => void;
+  const heldCorrection = new Promise<void>((resolve) => {
+    releaseCorrection = resolve;
+  });
+  let correctionPersisted!: () => void;
+  const persisted = new Promise<void>((resolve) => {
+    correctionPersisted = resolve;
+  });
+  await page.route(
+    '**/api/car-washes/*/appointments/*/customer-vehicle',
+    async (route) => {
+      const response = await route.fetch();
+      correctionPersisted();
+      await heldCorrection;
+      await route.fulfill({ response });
+    },
+    { times: 1 },
+  );
+  await dailyAppointment
+    .getByRole('button', { name: 'Corrigir cliente e veículo' })
+    .click();
+  const correctionRequest = page.waitForRequest(
+    (request) =>
+      request.method() === 'PATCH' &&
+      request.url().endsWith('/customer-vehicle'),
+  );
+  await dailyAppointment
+    .getByRole('button', { name: 'Salvar dados do atendimento' })
+    .click();
+  await correctionRequest;
+  await persisted;
+  await page.getByLabel('Dia da agenda').fill(futureDateInSaoPaulo(2));
+  await expect(
+    page
+      .getByLabel('Agenda diária')
+      .getByText('Nenhum atendimento neste período.'),
+  ).toBeVisible();
+  releaseCorrection();
+  await expect(
+    page.getByLabel('Agenda diária').getByText('Cliente Corrigido'),
+  ).not.toBeVisible();
 });
 
 const weekdayLabels = [

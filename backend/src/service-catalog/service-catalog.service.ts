@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { CreateServiceOfferingDto } from './create-service-offering.dto';
+import { lockScheduling } from '../scheduling/scheduling.service';
+import {
+  CreateServiceOfferingDto,
+  UpdateServiceOfferingDto,
+} from './service-offering.dto';
 import { UpdatePublicProfileDto } from './public-profile.dto';
 
 @Injectable()
@@ -17,14 +21,28 @@ export class ServiceCatalogService {
 
   create(carWashId: string, input: CreateServiceOfferingDto) {
     return this.prisma.serviceOffering.create({
-      data: {
-        carWashId,
-        name: input.name.trim(),
-        priceInCents: input.priceInCents,
-        durationInMinutes: input.durationInMinutes,
-        active: input.active,
-      },
+      data: { carWashId, ...serviceOfferingData(input) },
       select: serviceOfferingView,
+    });
+  }
+
+  update(
+    carWashId: string,
+    serviceId: string,
+    input: UpdateServiceOfferingDto,
+  ) {
+    return this.prisma.$transaction(async (transaction) => {
+      await lockScheduling(transaction, carWashId);
+      const current = await transaction.serviceOffering.findUnique({
+        where: { id_carWashId: { id: serviceId, carWashId } },
+        select: { id: true },
+      });
+      if (!current) throw new NotFoundException('Serviço não encontrado');
+      return transaction.serviceOffering.update({
+        where: { id_carWashId: { id: serviceId, carWashId } },
+        data: serviceOfferingData(input),
+        select: serviceOfferingView,
+      });
     });
   }
 
@@ -75,3 +93,12 @@ const publicServiceOfferingView = {
   priceInCents: true,
   durationInMinutes: true,
 } as const;
+
+function serviceOfferingData(input: CreateServiceOfferingDto) {
+  return {
+    name: input.name.trim(),
+    priceInCents: input.priceInCents,
+    durationInMinutes: input.durationInMinutes,
+    active: input.active,
+  };
+}

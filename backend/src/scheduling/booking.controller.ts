@@ -8,6 +8,7 @@ import {
   Injectable,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -16,18 +17,23 @@ import {
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiConflictResponse,
+  ApiHeader,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthenticatedRequest } from '../identity-access/auth.types';
+import { CsrfGuard } from '../identity-access/csrf.guard';
 import { SessionGuard } from '../identity-access/session.guard';
 import {
   AgendaDto,
   AgendaQueryDto,
   BookingReceiptDto,
+  CustomerVehicleDto,
   CreateBookingDto,
+  UpdateCustomerVehicleDto,
 } from './booking.dto';
 import { BookingService } from './booking.service';
 
@@ -96,5 +102,22 @@ export class TeamAgendaController {
   @ApiOkResponse({ type: AgendaDto })
   get(@Param('carWashId') carWashId: string, @Query() query: AgendaQueryDto) {
     return this.bookings.agenda(carWashId, query.date);
+  }
+
+  @Patch(':appointmentId/customer-vehicle')
+  @UseGuards(CsrfGuard)
+  @Header('Cache-Control', 'no-store')
+  @ApiHeader({ name: 'x-csrf-token', required: true })
+  @ApiOkResponse({
+    type: CustomerVehicleDto,
+    description: 'Dados operacionais de cliente e veículo corrigidos',
+  })
+  @ApiNotFoundResponse({ description: 'Agendamento não encontrado' })
+  updateCustomerVehicle(
+    @Param('carWashId') carWashId: string,
+    @Param('appointmentId') appointmentId: string,
+    @Body() input: UpdateCustomerVehicleDto,
+  ) {
+    return this.bookings.updateCustomerVehicle(carWashId, appointmentId, input);
   }
 }

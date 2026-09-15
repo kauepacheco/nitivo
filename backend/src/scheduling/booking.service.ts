@@ -9,7 +9,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { hashSecret } from '../identity-access/hash-secret';
-import { CreateBookingDto } from './booking.dto';
+import { CreateBookingDto, UpdateCustomerVehicleDto } from './booking.dto';
 import {
   addDays,
   isRealDate,
@@ -195,6 +195,53 @@ export class BookingService {
       }),
     ]);
     return { date: day, timezone: carWash.timezone, appointments, upcoming };
+  }
+
+  async updateCustomerVehicle(
+    carWashId: string,
+    appointmentId: string,
+    input: UpdateCustomerVehicleDto,
+  ) {
+    return this.prisma
+      .$transaction(async (tx) => {
+        const appointment = await tx.appointment.findFirst({
+          where: {
+            id: appointmentId,
+            carWashId,
+            customerId: { not: null },
+            vehicleId: { not: null },
+          },
+          select: { customerId: true, vehicleId: true },
+        });
+        if (!appointment?.customerId || !appointment.vehicleId)
+          throw new NotFoundException('Agendamento não encontrado');
+        const customer = await tx.customer.update({
+          where: {
+            id_carWashId: { id: appointment.customerId, carWashId },
+          },
+          data: { name: input.name, phone: input.phone },
+          select: { name: true, phone: true },
+        });
+        const vehicle = await tx.vehicle.update({
+          where: {
+            id_customerId_carWashId: {
+              id: appointment.vehicleId,
+              customerId: appointment.customerId,
+              carWashId,
+            },
+          },
+          data: { plate: input.plate },
+          select: { plate: true },
+        });
+        return { customer, vehicle };
+      })
+      .catch((error: unknown) => {
+        if (error instanceof HttpException) throw error;
+        // Não encaminhar argumentos pessoais do ORM ao logger HTTP.
+        throw new ServiceUnavailableException(
+          'Não foi possível atualizar os dados do atendimento',
+        );
+      });
   }
 
   // Limite atômico: inclui sucessos, erros e reenvios, sem persistir endereço IP bruto.

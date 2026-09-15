@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PickType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsOptional,
@@ -66,6 +66,12 @@ export class AgendaQueryDto {
   date?: string;
 }
 
+export class UpdateCustomerVehicleDto extends PickType(CreateBookingDto, [
+  'name',
+  'phone',
+  'plate',
+] as const) {}
+
 export class BookingReceiptDto {
   @ApiProperty() id!: string;
   @ApiProperty() carWashName!: string;
@@ -86,6 +92,10 @@ export class AgendaCustomerDto {
 }
 export class AgendaVehicleDto {
   @ApiProperty() plate!: string;
+}
+export class CustomerVehicleDto {
+  @ApiProperty({ type: AgendaCustomerDto }) customer!: AgendaCustomerDto;
+  @ApiProperty({ type: AgendaVehicleDto }) vehicle!: AgendaVehicleDto;
 }
 export class AgendaAppointmentDto {
   @ApiProperty() id!: string;
