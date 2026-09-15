@@ -27,7 +27,7 @@ solicitação explícita de push e acesso Git autenticado.
 | [#7](https://github.com/kauepacheco/nitivo/issues/7) | Sim | Pendente | Sim / Não | Aberta; aguarda publicação | `a94a991a` |
 | [#8](https://github.com/kauepacheco/nitivo/issues/8) | Sim | Pendente | Sim / Não | Aberta; aguarda publicação | `585c88d1` |
 | [#9](https://github.com/kauepacheco/nitivo/issues/9) | Sim | Sim | Sim / Não | Aberta; aguarda integração | `219b0074`, `f41726d6` |
-| [#10](https://github.com/kauepacheco/nitivo/issues/10) | Sim | Não | Não / Não | Aberta; aguarda publicação | commit desta entrega na `feat/10-correcao-cliente-veiculo` |
+| [#10](https://github.com/kauepacheco/nitivo/issues/10) | Sim | Não | Não / Não | Aberta; aguarda publicação | `efd44a54` |
 | [#11](https://github.com/kauepacheco/nitivo/issues/11) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#12](https://github.com/kauepacheco/nitivo/issues/12) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#13](https://github.com/kauepacheco/nitivo/issues/13) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |

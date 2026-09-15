@@ -142,7 +142,7 @@ O GitHub foi consultado pelo conector: `main` remota em `b8d56c52` e a branch
 `main` remota. As issues #7–#9 permanecem abertas até a reconciliação remota.
 
 A issue #10 está implementada localmente na branch
-`feat/10-correcao-cliente-veiculo`, no commit desta entrega. Aguarda publicação,
+`feat/10-correcao-cliente-veiculo`, no commit `efd44a54`. Aguarda publicação,
 integração à `main` e reconciliação no GitHub.
 
 Verificação da issue #10 em 15 de setembro de 2026: lint, tipos e build passaram;
