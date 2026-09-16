@@ -106,6 +106,28 @@ export class ChangeAppointmentStatusDto {
   reason?: string;
 }
 
+export class RescheduleAppointmentDto {
+  @ApiProperty({
+    example: '2026-09-12T12:00:00.000Z',
+    description: 'Novo instante UTC escolhido entre os horários disponíveis',
+  })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/)
+  startsAt!: string;
+
+  @ApiProperty({
+    example: '2026-09-11T10:00:00.000Z',
+    description: 'Momento informado do pedido de reagendamento',
+  })
+  @IsISO8601({ strict: true })
+  requestedAt!: string;
+}
+
+export class RescheduleAvailabilityQueryDto {
+  @ApiProperty({ example: '2026-09-12' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  date!: string;
+}
+
 export class BookingReceiptDto {
   @ApiProperty() id!: string;
   @ApiProperty() carWashName!: string;
@@ -161,6 +183,12 @@ export class AgendaAppointmentDto {
   cancellationRequestedAt!: string | null;
   @ApiProperty({ nullable: true })
   cancellationReason!: string | null;
+  @ApiProperty({ nullable: true })
+  rescheduleRequestedAt!: string | null;
+  @ApiProperty({ nullable: true })
+  rescheduledAt!: string | null;
+  @ApiProperty({ type: AgendaCreatorDto, nullable: true })
+  rescheduledBy!: AgendaCreatorDto | null;
   @ApiProperty({ type: AgendaCustomerDto, nullable: true })
   customer!: AgendaCustomerDto | null;
   @ApiProperty({ type: AgendaVehicleDto, nullable: true })

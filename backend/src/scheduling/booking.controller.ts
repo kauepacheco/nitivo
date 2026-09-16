@@ -37,6 +37,8 @@ import {
   CustomerVehicleDto,
   CreateBookingDto,
   CreateWalkInDto,
+  RescheduleAppointmentDto,
+  RescheduleAvailabilityQueryDto,
   UpdateCustomerVehicleDto,
 } from './booking.dto';
 import { BookingService } from './booking.service';
@@ -158,6 +160,52 @@ export class TeamAgendaController {
     @Body() input: UpdateCustomerVehicleDto,
   ) {
     return this.bookings.updateCustomerVehicle(carWashId, appointmentId, input);
+  }
+
+  @Get(':appointmentId/reschedule-availability')
+  @Header('Cache-Control', 'no-store')
+  @ApiOkResponse({
+    type: AvailabilityDto,
+    description:
+      'Horários de reagendamento calculados pela duração histórica da reserva',
+  })
+  getRescheduleAvailability(
+    @Param('carWashId') carWashId: string,
+    @Param('appointmentId') appointmentId: string,
+    @Query() query: RescheduleAvailabilityQueryDto,
+  ) {
+    return this.bookings.getRescheduleAvailability(
+      carWashId,
+      appointmentId,
+      query.date,
+    );
+  }
+
+  @Patch(':appointmentId/reschedule')
+  @UseGuards(CsrfGuard)
+  @Header('Cache-Control', 'no-store')
+  @ApiHeader({ name: 'x-csrf-token', required: true })
+  @ApiOkResponse({
+    type: AgendaAppointmentDto,
+    description:
+      'Reserva reagendada com autoria e horários do pedido e da ação registrados separadamente',
+  })
+  @ApiConflictResponse({
+    description: 'Horário indisponível ou reagendamento inválido',
+  })
+  @ApiNotFoundResponse({ description: 'Agendamento não encontrado' })
+  reschedule(
+    @Param('carWashId') carWashId: string,
+    @Param('appointmentId') appointmentId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() input: RescheduleAppointmentDto,
+  ) {
+    return this.bookings.reschedule(
+      carWashId,
+      appointmentId,
+      request.authSession!.userId,
+      input,
+    );
   }
 
   @Patch(':appointmentId/status')

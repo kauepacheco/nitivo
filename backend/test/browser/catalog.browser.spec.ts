@@ -324,6 +324,30 @@ test('proprietário configura capacidade e cliente consulta horários no celular
     page.getByLabel('Agenda diária').getByText('Placa: DEF4G56'),
   ).toBeVisible();
 
+  await dailyAppointment.getByRole('button', { name: 'Reagendar' }).click();
+  await dailyAppointment.getByLabel('Data do reagendamento').fill(date);
+  await dailyAppointment
+    .getByLabel('Horário informado do pedido de reagendamento')
+    .fill(`${futureDateInSaoPaulo(-1)}T06:00`);
+  await dailyAppointment
+    .getByRole('button', { name: 'Consultar horários para reagendar' })
+    .click();
+  await dailyAppointment
+    .getByLabel('Horários para reagendamento')
+    .getByRole('button', { name: '09:00' })
+    .click();
+  await dailyAppointment
+    .getByRole('button', { name: 'Confirmar reagendamento' })
+    .click();
+  await expect(page.getByText('Agendamento reagendado.')).toBeVisible();
+  await expect(dailyAppointment).toContainText('09:00');
+  await expect(dailyAppointment).toContainText(
+    /Pedido de reagendamento: .* às 06:00/,
+  );
+  await expect(dailyAppointment).toContainText(
+    /Reagendado por dona\.horizonte@example\.test em \d{2}\/\d{2}\/\d{4} às \d{2}:\d{2}/,
+  );
+
   let releaseCorrection!: () => void;
   const heldCorrection = new Promise<void>((resolve) => {
     releaseCorrection = resolve;
@@ -415,10 +439,12 @@ test('equipe registra encaixe pela agenda no celular', async ({ page }) => {
   await expect(appointment).toContainText('Lavagem expressa');
   await expect(appointment).toContainText('Encaixe da equipe');
   await expect(appointment).toContainText('Placa: DEF4G56');
-  await appointment.getByRole('button', { name: 'Cancelar agendamento' }).click();
+  await appointment
+    .getByRole('button', { name: 'Cancelar agendamento' })
+    .click();
   await page
     .getByLabel('Horário informado do pedido (opcional)')
-    .fill(`${date}T06:00`);
+    .fill(`${futureDateInSaoPaulo(-1)}T06:00`);
   await page.getByRole('button', { name: 'Confirmar cancelamento' }).click();
   await expect(page.getByText('Agendamento cancelado.')).toBeVisible();
   await expect(appointment).toContainText('Cancelado');

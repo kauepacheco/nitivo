@@ -233,13 +233,18 @@ type Appointment = {
   statusChangedAt: string | null;
   cancellationRequestedAt: string | null;
   cancellationReason: string | null;
+  rescheduleRequestedAt: string | null;
+  rescheduledAt: string | null;
+  rescheduledBy: { id: string; user: { email: string } } | null;
   customer: { name: string; phone: string } | null;
   vehicle: { plate: string } | null;
   box: { name: string };
 };
 
-type NextAppointmentStatus = 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED';
+type NextAppointmentStatus =
+  'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED';
 type CancellationInput = { requestedAt?: string; reason?: string };
+type RescheduleInput = { startsAt: string; requestedAt: string };
 type TeamService = {
   id: string;
   name: string;
@@ -404,11 +409,14 @@ export function TeamAgenda({
   ) {
     const targetAgendaView = agendaView;
     try {
-      await api(`/api/car-washes/${carWashId}/appointments/${appointmentId}/status`, {
-        method: 'PATCH',
-        headers: { 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ status, ...cancellation }),
-      });
+      await api(
+        `/api/car-washes/${carWashId}/appointments/${appointmentId}/status`,
+        {
+          method: 'PATCH',
+          headers: { 'x-csrf-token': csrfToken },
+          body: JSON.stringify({ status, ...cancellation }),
+        },
+      );
     } catch (error) {
       if (activeAgendaView.current === targetAgendaView)
         setMessage(errorMessage(error));
@@ -428,6 +436,42 @@ export function TeamAgenda({
       if (activeAgendaView.current === targetAgendaView) {
         setMessage(
           `${statusMessage(status)} A agenda não foi recarregada: ${errorMessage(error)}`,
+        );
+      }
+    }
+    return true;
+  }
+
+  async function reschedule(appointmentId: string, input: RescheduleInput) {
+    const targetAgendaView = agendaView;
+    try {
+      await api(
+        `/api/car-washes/${carWashId}/appointments/${appointmentId}/reschedule`,
+        {
+          method: 'PATCH',
+          headers: { 'x-csrf-token': csrfToken },
+          body: JSON.stringify(input),
+        },
+      );
+    } catch (error) {
+      if (activeAgendaView.current === targetAgendaView)
+        setMessage(errorMessage(error));
+      return false;
+    }
+    if (activeAgendaView.current !== targetAgendaView) return true;
+    try {
+      const query = date ? `?date=${encodeURIComponent(date)}` : '';
+      const refreshed = await api<Agenda>(
+        `/api/car-washes/${carWashId}/appointments${query}`,
+      );
+      if (activeAgendaView.current === targetAgendaView) {
+        setAgenda(refreshed);
+        setMessage('Agendamento reagendado.');
+      }
+    } catch (error) {
+      if (activeAgendaView.current === targetAgendaView) {
+        setMessage(
+          `Agendamento reagendado, mas a agenda não foi recarregada: ${errorMessage(error)}`,
         );
       }
     }
@@ -543,6 +587,8 @@ export function TeamAgenda({
               timezone={agenda.timezone}
               onUpdate={updateCustomerVehicle}
               onChangeStatus={changeStatus}
+              onReschedule={reschedule}
+              carWashId={carWashId}
             />
           </section>
           <section aria-label="Próximos atendimentos">
@@ -553,6 +599,8 @@ export function TeamAgenda({
               timezone={agenda.timezone}
               onUpdate={updateCustomerVehicle}
               onChangeStatus={changeStatus}
+              onReschedule={reschedule}
+              carWashId={carWashId}
             />
           </section>
         </>
@@ -566,6 +614,8 @@ function AppointmentList({
   timezone,
   onUpdate,
   onChangeStatus,
+  onReschedule,
+  carWashId,
 }: {
   appointments: Appointment[];
   timezone: string;
@@ -578,6 +628,11 @@ function AppointmentList({
     status: NextAppointmentStatus,
     cancellation?: CancellationInput,
   ) => Promise<boolean>;
+  onReschedule: (
+    appointmentId: string,
+    input: RescheduleInput,
+  ) => Promise<boolean>;
+  carWashId: string;
 }) {
   const [editingAppointmentId, setEditingAppointmentId] = useState<
     string | null
@@ -602,6 +657,8 @@ function AppointmentList({
             appointment={appointment}
             timezone={timezone}
             onChangeStatus={onChangeStatus}
+            onReschedule={onReschedule}
+            carWashId={carWashId}
           />
           {appointment.statusChangedBy && appointment.statusChangedAt ? (
             <p>
@@ -612,12 +669,27 @@ function AppointmentList({
           ) : null}
           {appointment.cancellationRequestedAt ? (
             <p>
-              Pedido informado: {formatDate(appointment.cancellationRequestedAt, timezone)}{' '}
-              às {formatTime(appointment.cancellationRequestedAt, timezone)}
+              Pedido informado:{' '}
+              {formatDate(appointment.cancellationRequestedAt, timezone)} às{' '}
+              {formatTime(appointment.cancellationRequestedAt, timezone)}
             </p>
           ) : null}
           {appointment.cancellationReason ? (
             <p>Motivo do cancelamento: {appointment.cancellationReason}</p>
+          ) : null}
+          {appointment.rescheduleRequestedAt ? (
+            <p>
+              Pedido de reagendamento:{' '}
+              {formatDate(appointment.rescheduleRequestedAt, timezone)} às{' '}
+              {formatTime(appointment.rescheduleRequestedAt, timezone)}
+            </p>
+          ) : null}
+          {appointment.rescheduledBy && appointment.rescheduledAt ? (
+            <p>
+              Reagendado por {appointment.rescheduledBy.user.email} em{' '}
+              {formatDate(appointment.rescheduledAt, timezone)} às{' '}
+              {formatTime(appointment.rescheduledAt, timezone)}
+            </p>
           ) : null}
           {appointment.origin === 'TEAM' ? (
             <p>
@@ -663,6 +735,8 @@ function AppointmentStatusActions({
   appointment,
   timezone,
   onChangeStatus,
+  onReschedule,
+  carWashId,
 }: {
   appointment: Appointment;
   timezone: string;
@@ -671,9 +745,15 @@ function AppointmentStatusActions({
     status: NextAppointmentStatus,
     cancellation?: CancellationInput,
   ) => Promise<boolean>;
+  onReschedule: (
+    appointmentId: string,
+    input: RescheduleInput,
+  ) => Promise<boolean>;
+  carWashId: string;
 }) {
   const [pending, setPending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
   const action = (status: NextAppointmentStatus) => async () => {
     setPending(true);
     await onChangeStatus(appointment.id, status);
@@ -682,7 +762,11 @@ function AppointmentStatusActions({
   if (appointment.status === 'CONFIRMED') {
     return (
       <div className="service-actions">
-        <button type="button" disabled={pending} onClick={action('IN_PROGRESS')}>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={action('IN_PROGRESS')}
+        >
           Iniciar atendimento
         </button>
         <button
@@ -701,6 +785,14 @@ function AppointmentStatusActions({
         >
           Cancelar agendamento
         </button>
+        <button
+          type="button"
+          className="secondary inline-button"
+          disabled={pending}
+          onClick={() => setRescheduling(true)}
+        >
+          Reagendar
+        </button>
         {cancelling ? (
           <CancellationForm
             pending={pending}
@@ -715,6 +807,21 @@ function AppointmentStatusActions({
               );
               setPending(false);
               if (changed) setCancelling(false);
+            }}
+          />
+        ) : null}
+        {rescheduling ? (
+          <RescheduleForm
+            appointment={appointment}
+            carWashId={carWashId}
+            timezone={timezone}
+            pending={pending}
+            onCancel={() => setRescheduling(false)}
+            onSubmit={async (input) => {
+              setPending(true);
+              const changed = await onReschedule(appointment.id, input);
+              setPending(false);
+              if (changed) setRescheduling(false);
             }}
           />
         ) : null}
@@ -744,14 +851,146 @@ function statusLabel(status: string) {
 }
 
 function statusMessage(status: NextAppointmentStatus) {
-  return (
-    {
-      IN_PROGRESS: 'Atendimento iniciado.',
-      COMPLETED: 'Atendimento concluído.',
-      NO_SHOW: 'Falta registrada.',
-      CANCELED: 'Agendamento cancelado.',
-    }[status]
+  return {
+    IN_PROGRESS: 'Atendimento iniciado.',
+    COMPLETED: 'Atendimento concluído.',
+    NO_SHOW: 'Falta registrada.',
+    CANCELED: 'Agendamento cancelado.',
+  }[status];
+}
+
+function RescheduleForm({
+  appointment,
+  carWashId,
+  timezone,
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  appointment: Appointment;
+  carWashId: string;
+  timezone: string;
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (input: RescheduleInput) => Promise<void>;
+}) {
+  const [date, setDate] = useState(
+    localDateInput(appointment.startsAt, timezone),
   );
+  const [requestedAt, setRequestedAt] = useState('');
+  const [availability, setAvailability] = useState<WalkInAvailability | null>(
+    null,
+  );
+  const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+
+  async function consult() {
+    setAvailability(null);
+    setSelectedSlot(null);
+    setMessage('Consultando horários…');
+    try {
+      const params = new URLSearchParams({ date });
+      const result = await api<WalkInAvailability>(
+        `/api/car-washes/${carWashId}/appointments/${appointment.id}/reschedule-availability?${params}`,
+      );
+      setAvailability(result);
+      setMessage(
+        result.slots.length ? '' : 'Nenhum horário disponível para reagendar.',
+      );
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedSlot || !requestedAt) return;
+    await onSubmit({
+      startsAt: selectedSlot,
+      requestedAt: localDateTimeToInstant(requestedAt, timezone),
+    });
+  }
+
+  return (
+    <form className="appointment-editor" onSubmit={submit}>
+      <label>
+        Data do reagendamento
+        <input
+          name="rescheduleDate"
+          type="date"
+          required
+          value={date}
+          disabled={pending}
+          onChange={(event) => setDate(event.target.value)}
+        />
+      </label>
+      <label>
+        Horário informado do pedido de reagendamento
+        <input
+          name="rescheduleRequestedAt"
+          type="datetime-local"
+          required
+          value={requestedAt}
+          disabled={pending}
+          onChange={(event) => setRequestedAt(event.target.value)}
+        />
+      </label>
+      <button type="button" disabled={pending} onClick={() => void consult()}>
+        Consultar horários para reagendar
+      </button>
+      {availability?.slots.length ? (
+        <div className="slot-list" aria-label="Horários para reagendamento">
+          {availability.slots.map((slot) => (
+            <button
+              key={slot.startsAt}
+              type="button"
+              className="slot"
+              aria-pressed={selectedSlot === slot.startsAt}
+              disabled={pending}
+              onClick={() => setSelectedSlot(slot.startsAt)}
+            >
+              {formatTime(slot.startsAt, availability.timezone)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {selectedSlot && availability ? (
+        <p>
+          Novo horário escolhido:{' '}
+          {formatTime(selectedSlot, availability.timezone)}
+        </p>
+      ) : null}
+      <div className="service-actions">
+        <button
+          type="submit"
+          disabled={pending || !selectedSlot || !requestedAt}
+        >
+          {pending ? 'Reagendando…' : 'Confirmar reagendamento'}
+        </button>
+        <button
+          type="button"
+          className="secondary inline-button"
+          disabled={pending}
+          onClick={onCancel}
+        >
+          Voltar
+        </button>
+      </div>
+      {message ? <p role="status">{message}</p> : null}
+    </form>
+  );
+}
+
+function localDateInput(instant: string, timezone: string) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date(instant));
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value;
+  return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
 function CancellationForm({
@@ -832,8 +1071,13 @@ function localDateTimeToInstant(value: string, timezone: string) {
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((candidate) => candidate.type === type)?.value);
   const offset =
-    Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute')) -
-    localAsUtc;
+    Date.UTC(
+      part('year'),
+      part('month') - 1,
+      part('day'),
+      part('hour'),
+      part('minute'),
+    ) - localAsUtc;
   return new Date(localAsUtc - offset).toISOString();
 }
 

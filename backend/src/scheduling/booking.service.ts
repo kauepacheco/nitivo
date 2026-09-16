@@ -12,6 +12,7 @@ import { hashSecret } from '../identity-access/hash-secret';
 import {
   CreateBookingDto,
   CreateWalkInDto,
+  RescheduleAppointmentDto,
   UpdateCustomerVehicleDto,
 } from './booking.dto';
 import {
@@ -47,6 +48,17 @@ const agendaSelection = {
       },
     },
     orderBy: { changedAt: 'desc' },
+    take: 1,
+  },
+  rescheduleChanges: {
+    select: {
+      requestedAt: true,
+      rescheduledAt: true,
+      rescheduledBy: {
+        select: { id: true, user: { select: { email: true } } },
+      },
+    },
+    orderBy: { rescheduledAt: 'desc' },
     take: 1,
   },
   customer: { select: { name: true, phone: true } },
@@ -191,6 +203,29 @@ export class BookingService {
     return this.scheduling.getWalkInAvailability(carWash.slug, query);
   }
 
+  async getRescheduleAvailability(
+    carWashId: string,
+    appointmentId: string,
+    date: string,
+  ) {
+    const appointment = await this.prisma.appointment.findFirst({
+      where: { id: appointmentId, carWashId, status: 'CONFIRMED' },
+      select: {
+        serviceDurationInMinutes: true,
+      },
+    });
+    if (!appointment) throw new NotFoundException('Agendamento não encontrado');
+    const carWash = await this.prisma.carWash.findUniqueOrThrow({
+      where: { id: carWashId },
+      select: { slug: true },
+    });
+    return this.scheduling.getWalkInAvailabilityForDuration(carWash.slug, {
+      date,
+      durationInMinutes: appointment.serviceDurationInMinutes,
+      excludingAppointmentId: appointmentId,
+    });
+  }
+
   async createWalkIn(
     carWashId: string,
     createdByUserId: string,
@@ -220,15 +255,17 @@ export class BookingService {
             startsAt,
             'TEAM',
           );
-        return toAgendaAppointment(await createAppointment(tx, {
-          carWashId,
-          service,
-          startsAt,
-          endsAt,
-          customer: input,
-          source: { origin: 'TEAM', createdByMembershipId: creator.id },
-          unavailableMessage,
-        }));
+        return toAgendaAppointment(
+          await createAppointment(tx, {
+            carWashId,
+            service,
+            startsAt,
+            endsAt,
+            customer: input,
+            source: { origin: 'TEAM', createdByMembershipId: creator.id },
+            unavailableMessage,
+          }),
+        );
       })
       .catch((error: unknown) => {
         if (error instanceof HttpException) throw error;
@@ -328,6 +365,119 @@ export class BookingService {
       });
   }
 
+  async reschedule(
+    carWashId: string,
+    appointmentId: string,
+    rescheduledByUserId: string,
+    input: RescheduleAppointmentDto,
+  ) {
+    const startsAt = parseStartsAt(input.startsAt);
+    return this.prisma.$transaction(async (tx) => {
+      await lockScheduling(tx, carWashId);
+      const membership = await tx.membership.findUnique({
+        where: {
+          userId_carWashId: { userId: rescheduledByUserId, carWashId },
+        },
+        select: { id: true, status: true },
+      });
+      if (!membership || membership.status !== 'ACTIVE') {
+        throw new NotFoundException('Lavação não encontrada');
+      }
+      const appointment = await tx.appointment.findFirst({
+        where: { id: appointmentId, carWashId },
+        select: {
+          id: true,
+          status: true,
+          boxId: true,
+          startsAt: true,
+          endsAt: true,
+          serviceOfferingId: true,
+          serviceDurationInMinutes: true,
+        },
+      });
+      if (!appointment)
+        throw new NotFoundException('Agendamento não encontrado');
+      if (appointment.status !== 'CONFIRMED') {
+        throw new ConflictException(
+          'Somente reservas confirmadas podem ser reagendadas',
+        );
+      }
+      const carWash = await tx.carWash.findUniqueOrThrow({
+        where: { id: carWashId },
+        select: { slug: true, changeNoticeMinutes: true, timezone: true },
+      });
+      const requestedAt = new Date(input.requestedAt);
+      const rescheduledAt = new Date(Date.now());
+      if (requestedAt.getTime() > rescheduledAt.getTime()) {
+        throw new BadRequestException(
+          'Horário informado do pedido não pode estar no futuro',
+        );
+      }
+      if (
+        requestedAt.getTime() >
+        appointment.startsAt.getTime() - carWash.changeNoticeMinutes * 60_000
+      ) {
+        throw new ConflictException('Pedido de reagendamento fora do prazo');
+      }
+      const availability =
+        await this.scheduling.getWalkInAvailabilityForDuration(
+          carWash.slug,
+          {
+            date: localDate(startsAt, carWash.timezone),
+            durationInMinutes: appointment.serviceDurationInMinutes,
+            excludingAppointmentId: appointment.id,
+          },
+          tx,
+        );
+      const slot = availability.slots.find(
+        (candidate) => candidate.startsAt === input.startsAt,
+      );
+      if (!slot) throw new ConflictException('Horário indisponível');
+      const endsAt = new Date(slot.endsAt);
+      const box = await findAvailableBox(tx, {
+        carWashId,
+        startsAt,
+        endsAt,
+        excludingAppointmentId: appointment.id,
+      });
+      if (!box) throw new ConflictException('Horário indisponível');
+      const updated = await tx.appointment.updateMany({
+        where: {
+          id: appointment.id,
+          carWashId,
+          status: 'CONFIRMED',
+          startsAt: appointment.startsAt,
+          endsAt: appointment.endsAt,
+          boxId: appointment.boxId,
+        },
+        data: { boxId: box.id, startsAt, endsAt },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictException(
+          'Agendamento foi atualizado por outra pessoa',
+        );
+      }
+      await tx.appointmentRescheduleChange.create({
+        data: {
+          appointmentId: appointment.id,
+          carWashId,
+          previousBoxId: appointment.boxId,
+          previousStartsAt: appointment.startsAt,
+          previousEndsAt: appointment.endsAt,
+          requestedAt,
+          rescheduledAt,
+          rescheduledByMembershipId: membership.id,
+        },
+      });
+      return toAgendaAppointment(
+        await tx.appointment.findUniqueOrThrow({
+          where: { id: appointment.id },
+          select: agendaSelection,
+        }),
+      );
+    });
+  }
+
   async changeStatus(
     carWashId: string,
     appointmentId: string,
@@ -348,7 +498,8 @@ export class BookingService {
         where: { id: appointmentId, carWashId },
         select: { id: true, status: true, startsAt: true },
       });
-      if (!appointment) throw new NotFoundException('Agendamento não encontrado');
+      if (!appointment)
+        throw new NotFoundException('Agendamento não encontrado');
       if (!isAllowedStatusTransition(appointment.status, input.status)) {
         throw new ConflictException('Transição de estado inválida');
       }
@@ -365,7 +516,9 @@ export class BookingService {
         data: { status: input.status },
       });
       if (updated.count !== 1) {
-        throw new ConflictException('Estado do atendimento foi atualizado por outra pessoa');
+        throw new ConflictException(
+          'Estado do atendimento foi atualizado por outra pessoa',
+        );
       }
       await tx.appointmentStatusChange.create({
         data: {
@@ -402,7 +555,10 @@ export class BookingService {
       return { cancellationRequestedAt: null, cancellationReason: null };
     }
     if (!input.requestedAt) {
-      return { cancellationRequestedAt: null, cancellationReason: input.reason?.trim() || null };
+      return {
+        cancellationRequestedAt: null,
+        cancellationReason: input.reason?.trim() || null,
+      };
     }
     if (input.reason?.trim()) {
       throw new BadRequestException(
@@ -493,20 +649,7 @@ async function createAppointment(
     unavailableMessage: string;
   },
 ) {
-  const box = await tx.box.findFirst({
-    where: {
-      carWashId: input.carWashId,
-      active: true,
-      appointments: {
-        none: {
-          status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
-          startsAt: { lt: input.endsAt },
-          endsAt: { gt: input.startsAt },
-        },
-      },
-    },
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-  });
+  const box = await findAvailableBox(tx, input);
   if (!box) throw new ConflictException(input.unavailableMessage);
   const customer = await tx.customer.create({
     data: {
@@ -541,6 +684,34 @@ async function createAppointment(
   });
 }
 
+async function findAvailableBox(
+  tx: Prisma.TransactionClient,
+  input: {
+    carWashId: string;
+    startsAt: Date;
+    endsAt: Date;
+    excludingAppointmentId?: string;
+  },
+) {
+  return tx.box.findFirst({
+    where: {
+      carWashId: input.carWashId,
+      active: true,
+      appointments: {
+        none: {
+          id: input.excludingAppointmentId
+            ? { not: input.excludingAppointmentId }
+            : undefined,
+          status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+          startsAt: { lt: input.endsAt },
+          endsAt: { gt: input.startsAt },
+        },
+      },
+    },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+  });
+}
+
 function isAllowedStatusTransition(
   current: 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW',
   next: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED',
@@ -556,6 +727,7 @@ function toAgendaAppointment(
   appointment: Prisma.AppointmentGetPayload<{ select: typeof agendaSelection }>,
 ) {
   const [lastChange] = appointment.statusChanges;
+  const [lastReschedule] = appointment.rescheduleChanges;
   return {
     ...appointment,
     statusChanges: undefined,
@@ -564,6 +736,9 @@ function toAgendaAppointment(
     cancellationRequestedAt:
       lastChange?.cancellationRequestedAt?.toISOString() ?? null,
     cancellationReason: lastChange?.cancellationReason ?? null,
+    rescheduleRequestedAt: lastReschedule?.requestedAt.toISOString() ?? null,
+    rescheduledAt: lastReschedule?.rescheduledAt.toISOString() ?? null,
+    rescheduledBy: lastReschedule?.rescheduledBy ?? null,
   };
 }
 
