@@ -156,9 +156,10 @@ O GitHub foi consultado em 16 de setembro de 2026: a `main` remota está no merg
 foi fechada como concluída, sem o rótulo `ready-for-agent`.
 
 A issue #12 está implementada localmente na branch `feat/12-estados-atendimento`,
-nos commits `e6db0916` e `b049ba38`, e a branch está publicada no GitHub. Aguarda
-integração à `main`. Os critérios comprovados foram marcados, o rótulo
-`ready-for-agent` foi removido e a issue permanece aberta com essa pendência. O
+nos commits `e6db0916` e `b049ba38`, e está integrada à `main` local por
+fast-forward. O push da `main` e a confirmação da integração remota permanecem
+pendentes. Os critérios comprovados foram marcados, o rótulo `ready-for-agent`
+foi removido e a issue permanece aberta com essa pendência. O
 [índice das issues](specs/tickets-primeiro-piloto-saas.md) distingue esses estados.
 
 Verificações finais da issue #12: lint, tipos e build passaram, assim como 1
@@ -179,7 +180,7 @@ cancelar após conferência da solicitação.
 
 ## Pendências de execução
 
-- integrar a issue #12 à `main` local e remota;
+- publicar a `main` e confirmar a integração remota da issue #12;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
 - implementar e verificar as issues #13 a #23 em sequência;
