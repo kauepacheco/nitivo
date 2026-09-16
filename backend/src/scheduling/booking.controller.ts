@@ -166,7 +166,8 @@ export class TeamAgendaController {
   @ApiHeader({ name: 'x-csrf-token', required: true })
   @ApiOkResponse({
     type: AgendaAppointmentDto,
-    description: 'Estado do atendimento atualizado com autoria e momento',
+    description:
+      'Estado do atendimento atualizado com autoria, momento e metadados do cancelamento quando aplicável',
   })
   @ApiConflictResponse({ description: 'Transição de estado inválida' })
   @ApiNotFoundResponse({ description: 'Agendamento não encontrado' })
@@ -180,7 +181,7 @@ export class TeamAgendaController {
       carWashId,
       appointmentId,
       request.authSession!.userId,
-      input.status,
+      input,
     );
   }
 }

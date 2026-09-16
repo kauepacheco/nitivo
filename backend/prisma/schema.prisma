@@ -186,6 +186,8 @@ model AppointmentStatusChange {
   status                AppointmentStatus
   changedByMembershipId String
   changedAt             DateTime          @default(now()) @db.Timestamptz(3)
+  cancellationRequestedAt DateTime?       @db.Timestamptz(3)
+  cancellationReason    String?
   appointment           Appointment       @relation(fields: [appointmentId, carWashId], references: [id, carWashId], onDelete: Restrict)
   changedBy             Membership        @relation(fields: [changedByMembershipId, carWashId], references: [id, carWashId], onDelete: Restrict)
 

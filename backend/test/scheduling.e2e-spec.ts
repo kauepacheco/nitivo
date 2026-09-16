@@ -570,7 +570,10 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
       openApi.body.paths['/api/car-washes/{carWashId}/appointments/{appointmentId}/status']
         .patch.responses,
     ).toMatchObject({
-      200: { description: 'Estado do atendimento atualizado com autoria e momento' },
+      200: {
+        description:
+          'Estado do atendimento atualizado com autoria, momento e metadados do cancelamento quando aplicável',
+      },
       409: { description: 'Transição de estado inválida' },
     });
   });
@@ -611,6 +614,135 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
       .set('x-csrf-token', fixture.owner.csrfToken)
       .send({ status: 'IN_PROGRESS' })
       .expect(409);
+  });
+
+  it('cancela após conferir o pedido, preserva seus horários e libera o box somente ao registrar a ação', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const path = `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/status`;
+    const requestedAt = '2026-09-11T10:00:00.000Z';
+
+    await fixture
+      .book({ ...fixture.input, attemptId: randomUUID() })
+      .expect(409);
+
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'CANCELED', requestedAt })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          id: receipt.body.id,
+          status: 'CANCELED',
+          cancellationRequestedAt: requestedAt,
+          cancellationReason: null,
+        });
+        expect(response.body.statusChangedAt).toEqual(expect.any(String));
+      });
+
+    await fixture
+      .book({ ...fixture.input, attemptId: randomUUID() })
+      .expect(201);
+
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.appointments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: receipt.body.id,
+          status: 'CANCELED',
+          cancellationRequestedAt: requestedAt,
+        }),
+      ]),
+    );
+  });
+
+  it('aceita a exceção da equipe fora do prazo com motivo opcional e rejeita pedido tardio', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const path = `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/status`;
+
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'CANCELED', requestedAt: '2026-09-11T11:30:00.000Z' })
+      .expect(409);
+
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        status: 'CANCELED',
+        requestedAt: '2026-09-11T10:00:00.000Z',
+        reason: 'Não deve ser aceito',
+      })
+      .expect(400);
+
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'CANCELED', reason: 'Exceção operacional fictícia' })
+      .expect(200)
+      .expect((response) =>
+        expect(response.body).toMatchObject({
+          status: 'CANCELED',
+          cancellationRequestedAt: null,
+          cancellationReason: 'Exceção operacional fictícia',
+        }),
+      );
+  });
+
+  it('serializa o cancelamento com outra ação e com a nova reserva do mesmo horário', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const path = `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/status`;
+    const [cancel, start] = await Promise.all([
+      fixture.owner.agent
+        .patch(path)
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({ status: 'CANCELED', reason: 'Exceção fictícia' }),
+      fixture.owner.agent
+        .patch(path)
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({ status: 'IN_PROGRESS' }),
+    ]);
+    expect([cancel.status, start.status].sort()).toEqual([200, 409]);
+
+    if (cancel.status === 200) {
+      await fixture
+        .book({ ...fixture.input, attemptId: randomUUID() })
+        .expect(201);
+      return;
+    }
+
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'COMPLETED' })
+      .expect(200);
+    await fixture
+      .book({ ...fixture.input, attemptId: randomUUID() })
+      .expect(409);
+  });
+
+  it('não deixa liberação parcial quando cancelamento e nova reserva disputam o mesmo box', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    const path = `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/status`;
+    const [canceled, replacement] = await Promise.all([
+      fixture.owner.agent
+        .patch(path)
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({ status: 'CANCELED', reason: 'Exceção fictícia' }),
+      fixture.book({ ...fixture.input, attemptId: randomUUID() }),
+    ]);
+    expect(canceled.status).toBe(200);
+    expect([201, 409]).toContain(replacement.status);
+    if (replacement.status === 409) {
+      await fixture
+        .book({ ...fixture.input, attemptId: randomUUID() })
+        .expect(201);
+    }
   });
 
   it('permite à equipe corrigir cliente e veículo e mostra a correção na agenda', async () => {
