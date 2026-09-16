@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional, PickType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsOptional,
+  IsISO8601,
   IsIn,
   IsString,
   IsUUID,
@@ -82,9 +83,27 @@ export class CreateWalkInDto extends PickType(CreateBookingDto, [
 ] as const) {}
 
 export class ChangeAppointmentStatusDto {
-  @ApiProperty({ enum: ['IN_PROGRESS', 'COMPLETED', 'NO_SHOW'] })
-  @IsIn(['IN_PROGRESS', 'COMPLETED', 'NO_SHOW'])
-  status!: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW';
+  @ApiProperty({ enum: ['IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'CANCELED'] })
+  @IsIn(['IN_PROGRESS', 'COMPLETED', 'NO_SHOW', 'CANCELED'])
+  status!: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED';
+
+  @ApiPropertyOptional({
+    description:
+      'Momento informado do pedido de cancelamento. Ausente quando a equipe aplica uma exceção operacional.',
+    example: '2026-09-11T10:00:00.000Z',
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  requestedAt?: string;
+
+  @ApiPropertyOptional({
+    description: 'Motivo opcional da exceção operacional de cancelamento',
+    maxLength: 500,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }
 
 export class BookingReceiptDto {
@@ -138,6 +157,10 @@ export class AgendaAppointmentDto {
   statusChangedBy!: AgendaCreatorDto | null;
   @ApiProperty({ nullable: true })
   statusChangedAt!: string | null;
+  @ApiProperty({ nullable: true })
+  cancellationRequestedAt!: string | null;
+  @ApiProperty({ nullable: true })
+  cancellationReason!: string | null;
   @ApiProperty({ type: AgendaCustomerDto, nullable: true })
   customer!: AgendaCustomerDto | null;
   @ApiProperty({ type: AgendaVehicleDto, nullable: true })

@@ -40,6 +40,8 @@ const agendaSelection = {
   statusChanges: {
     select: {
       changedAt: true,
+      cancellationRequestedAt: true,
+      cancellationReason: true,
       changedBy: {
         select: { id: true, user: { select: { email: true } } },
       },
@@ -51,6 +53,12 @@ const agendaSelection = {
   vehicle: { select: { plate: true } },
   box: { select: { name: true } },
 } satisfies Prisma.AppointmentSelect;
+
+type StatusChangeInput = {
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED';
+  requestedAt?: string;
+  reason?: string;
+};
 
 @Injectable()
 export class BookingService {
@@ -324,7 +332,7 @@ export class BookingService {
     carWashId: string,
     appointmentId: string,
     changedByUserId: string,
-    status: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW',
+    input: StatusChangeInput,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const membership = await tx.membership.findUnique({
@@ -338,16 +346,23 @@ export class BookingService {
       }
       const appointment = await tx.appointment.findFirst({
         where: { id: appointmentId, carWashId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, startsAt: true },
       });
       if (!appointment) throw new NotFoundException('Agendamento não encontrado');
-      if (!isAllowedStatusTransition(appointment.status, status)) {
+      if (!isAllowedStatusTransition(appointment.status, input.status)) {
         throw new ConflictException('Transição de estado inválida');
       }
       const changedAt = new Date(Date.now());
+      const cancellation = await this.cancellationMetadata(
+        tx,
+        carWashId,
+        appointment,
+        input,
+        changedAt,
+      );
       const updated = await tx.appointment.updateMany({
         where: { id: appointment.id, carWashId, status: appointment.status },
-        data: { status },
+        data: { status: input.status },
       });
       if (updated.count !== 1) {
         throw new ConflictException('Estado do atendimento foi atualizado por outra pessoa');
@@ -357,9 +372,10 @@ export class BookingService {
           appointmentId: appointment.id,
           carWashId,
           previousStatus: appointment.status,
-          status,
+          status: input.status,
           changedByMembershipId: membership.id,
           changedAt,
+          ...cancellation,
         },
       });
       const result = await tx.appointment.findUniqueOrThrow({
@@ -368,6 +384,51 @@ export class BookingService {
       });
       return toAgendaAppointment(result);
     });
+  }
+
+  private async cancellationMetadata(
+    tx: Prisma.TransactionClient,
+    carWashId: string,
+    appointment: { startsAt: Date },
+    input: StatusChangeInput,
+    changedAt: Date,
+  ) {
+    if (input.status !== 'CANCELED') {
+      if (input.requestedAt || input.reason?.trim()) {
+        throw new BadRequestException(
+          'Dados de cancelamento exigem o estado CANCELED',
+        );
+      }
+      return { cancellationRequestedAt: null, cancellationReason: null };
+    }
+    if (!input.requestedAt) {
+      return { cancellationRequestedAt: null, cancellationReason: input.reason?.trim() || null };
+    }
+    if (input.reason?.trim()) {
+      throw new BadRequestException(
+        'Motivo é permitido somente para exceção de cancelamento',
+      );
+    }
+    const requestedAt = new Date(input.requestedAt);
+    if (requestedAt.getTime() > changedAt.getTime()) {
+      throw new BadRequestException(
+        'Horário informado do pedido não pode estar no futuro',
+      );
+    }
+    const carWash = await tx.carWash.findUniqueOrThrow({
+      where: { id: carWashId },
+      select: { changeNoticeMinutes: true },
+    });
+    if (
+      requestedAt.getTime() >
+      appointment.startsAt.getTime() - carWash.changeNoticeMinutes * 60_000
+    ) {
+      throw new ConflictException('Pedido de cancelamento fora do prazo');
+    }
+    return {
+      cancellationRequestedAt: requestedAt,
+      cancellationReason: null,
+    };
   }
 
   // Limite atômico: inclui sucessos, erros e reenvios, sem persistir endereço IP bruto.
@@ -482,10 +543,11 @@ async function createAppointment(
 
 function isAllowedStatusTransition(
   current: 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW',
-  next: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW',
+  next: 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED',
 ) {
   return (
-    (current === 'CONFIRMED' && (next === 'IN_PROGRESS' || next === 'NO_SHOW')) ||
+    (current === 'CONFIRMED' &&
+      (next === 'IN_PROGRESS' || next === 'NO_SHOW' || next === 'CANCELED')) ||
     (current === 'IN_PROGRESS' && next === 'COMPLETED')
   );
 }
@@ -499,6 +561,9 @@ function toAgendaAppointment(
     statusChanges: undefined,
     statusChangedAt: lastChange?.changedAt.toISOString() ?? null,
     statusChangedBy: lastChange?.changedBy ?? null,
+    cancellationRequestedAt:
+      lastChange?.cancellationRequestedAt?.toISOString() ?? null,
+    cancellationReason: lastChange?.cancellationReason ?? null,
   };
 }
 

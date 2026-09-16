@@ -118,3 +118,14 @@ de outra lavação. A agenda expõe essa autoria somente à equipe autorizada do
 tenant. Os testes usam identidades e dados fictícios; retenção e
 exercício de direitos permanecem pendentes das issues específicas antes do uso
 de dados reais.
+
+## Cancelamento assistido implementado (issue #13)
+
+A equipe autenticada e vinculada à lavação confere a solicitação recebida fora
+do Nitivo e registra apenas o instante informado do pedido, quando aplicável,
+e um motivo opcional para exceções operacionais. A conversa do WhatsApp não é
+copiada nem lida pelo sistema. O histórico também registra separadamente a
+autoria e o instante em que a equipe efetivou o cancelamento. Esses dados ficam
+restritos à agenda do tenant; não criam consulta pública da reserva nem são
+encaminhados aos logs. Retenção e exercício de direitos continuam pendentes
+antes do uso de dados reais.

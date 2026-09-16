@@ -231,12 +231,15 @@ type Appointment = {
   createdBy: { id: string; user: { email: string } } | null;
   statusChangedBy: { id: string; user: { email: string } } | null;
   statusChangedAt: string | null;
+  cancellationRequestedAt: string | null;
+  cancellationReason: string | null;
   customer: { name: string; phone: string } | null;
   vehicle: { plate: string } | null;
   box: { name: string };
 };
 
-type NextAppointmentStatus = 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW';
+type NextAppointmentStatus = 'IN_PROGRESS' | 'COMPLETED' | 'NO_SHOW' | 'CANCELED';
+type CancellationInput = { requestedAt?: string; reason?: string };
 type TeamService = {
   id: string;
   name: string;
@@ -397,13 +400,14 @@ export function TeamAgenda({
   async function changeStatus(
     appointmentId: string,
     status: NextAppointmentStatus,
+    cancellation?: CancellationInput,
   ) {
     const targetAgendaView = agendaView;
     try {
       await api(`/api/car-washes/${carWashId}/appointments/${appointmentId}/status`, {
         method: 'PATCH',
         headers: { 'x-csrf-token': csrfToken },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, ...cancellation }),
       });
     } catch (error) {
       if (activeAgendaView.current === targetAgendaView)
@@ -572,6 +576,7 @@ function AppointmentList({
   onChangeStatus: (
     appointmentId: string,
     status: NextAppointmentStatus,
+    cancellation?: CancellationInput,
   ) => Promise<boolean>;
 }) {
   const [editingAppointmentId, setEditingAppointmentId] = useState<
@@ -595,6 +600,7 @@ function AppointmentList({
           <p>{statusLabel(appointment.status)}</p>
           <AppointmentStatusActions
             appointment={appointment}
+            timezone={timezone}
             onChangeStatus={onChangeStatus}
           />
           {appointment.statusChangedBy && appointment.statusChangedAt ? (
@@ -603,6 +609,15 @@ function AppointmentList({
               {formatDate(appointment.statusChangedAt, timezone)} às{' '}
               {formatTime(appointment.statusChangedAt, timezone)}
             </p>
+          ) : null}
+          {appointment.cancellationRequestedAt ? (
+            <p>
+              Pedido informado: {formatDate(appointment.cancellationRequestedAt, timezone)}{' '}
+              às {formatTime(appointment.cancellationRequestedAt, timezone)}
+            </p>
+          ) : null}
+          {appointment.cancellationReason ? (
+            <p>Motivo do cancelamento: {appointment.cancellationReason}</p>
           ) : null}
           {appointment.origin === 'TEAM' ? (
             <p>
@@ -646,15 +661,19 @@ function AppointmentList({
 
 function AppointmentStatusActions({
   appointment,
+  timezone,
   onChangeStatus,
 }: {
   appointment: Appointment;
+  timezone: string;
   onChangeStatus: (
     appointmentId: string,
     status: NextAppointmentStatus,
+    cancellation?: CancellationInput,
   ) => Promise<boolean>;
 }) {
   const [pending, setPending] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const action = (status: NextAppointmentStatus) => async () => {
     setPending(true);
     await onChangeStatus(appointment.id, status);
@@ -674,6 +693,31 @@ function AppointmentStatusActions({
         >
           Marcar falta
         </button>
+        <button
+          type="button"
+          className="secondary inline-button"
+          disabled={pending}
+          onClick={() => setCancelling(true)}
+        >
+          Cancelar agendamento
+        </button>
+        {cancelling ? (
+          <CancellationForm
+            pending={pending}
+            timezone={timezone}
+            onCancel={() => setCancelling(false)}
+            onSubmit={async (input) => {
+              setPending(true);
+              const changed = await onChangeStatus(
+                appointment.id,
+                'CANCELED',
+                input,
+              );
+              setPending(false);
+              if (changed) setCancelling(false);
+            }}
+          />
+        ) : null}
       </div>
     );
   }
@@ -705,8 +749,92 @@ function statusMessage(status: NextAppointmentStatus) {
       IN_PROGRESS: 'Atendimento iniciado.',
       COMPLETED: 'Atendimento concluído.',
       NO_SHOW: 'Falta registrada.',
+      CANCELED: 'Agendamento cancelado.',
     }[status]
   );
+}
+
+function CancellationForm({
+  pending,
+  timezone,
+  onCancel,
+  onSubmit,
+}: {
+  pending: boolean;
+  timezone: string;
+  onCancel: () => void;
+  onSubmit: (input: CancellationInput) => Promise<void>;
+}) {
+  const [requestedAt, setRequestedAt] = useState('');
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    await onSubmit({
+      requestedAt: requestedAt
+        ? localDateTimeToInstant(requestedAt, timezone)
+        : undefined,
+      reason: requestedAt
+        ? undefined
+        : String(form.get('reason') || '').trim() || undefined,
+    });
+  }
+
+  return (
+    <form className="appointment-editor" onSubmit={submit}>
+      <label>
+        Horário informado do pedido (opcional)
+        <input
+          name="requestedAt"
+          type="datetime-local"
+          value={requestedAt}
+          onChange={(event) => setRequestedAt(event.target.value)}
+        />
+      </label>
+      <p>
+        Informe o horário enviado pelo cliente para aplicar o prazo. Deixe em
+        branco para registrar uma exceção da equipe.
+      </p>
+      <label>
+        Motivo da exceção (opcional)
+        <input name="reason" maxLength={500} disabled={Boolean(requestedAt)} />
+      </label>
+      <div className="service-actions">
+        <button type="submit" disabled={pending}>
+          {pending ? 'Cancelando…' : 'Confirmar cancelamento'}
+        </button>
+        <button
+          type="button"
+          className="secondary inline-button"
+          disabled={pending}
+          onClick={onCancel}
+        >
+          Voltar
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function localDateTimeToInstant(value: string, timezone: string) {
+  const [date, time] = value.split('T');
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  const localAsUtc = Date.UTC(year, month - 1, day, hour, minute);
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(localAsUtc));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((candidate) => candidate.type === type)?.value);
+  const offset =
+    Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute')) -
+    localAsUtc;
+  return new Date(localAsUtc - offset).toISOString();
 }
 
 function CustomerVehicleForm({

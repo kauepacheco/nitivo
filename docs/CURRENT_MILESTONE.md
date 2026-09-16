@@ -10,8 +10,8 @@ uso de dados reais.
 
 ## Marco
 
-[Issue #12](https://github.com/kauepacheco/nitivo/issues/12): iniciar, concluir
-e marcar falta em atendimentos.
+[Issue #13](https://github.com/kauepacheco/nitivo/issues/13): cancelar após
+conferência da solicitação.
 
 ## Concluído
 
@@ -160,6 +160,16 @@ critérios comprovados foram marcados, o rótulo `ready-for-agent` foi removido 
 a issue foi fechada como concluída. O
 [índice das issues](specs/tickets-primeiro-piloto-saas.md) distingue esses estados.
 
+A issue #13 está implementada localmente na branch
+`feat/13-cancelamento-solicitacao`, nos commits `51e7cdd3`, `b62b0496` e
+`1e9874d1`, mas ainda não foi
+publicada nem integrada à `main`. O índice registra `Sim / Não / Não / Não`;
+a issue remota permanece aberta, sem rótulo de triagem, com os critérios
+comprovados marcados e a pendência de publicação registrada.
+
+Verificações finais da issue #13: lint, tipos e build passaram, assim como 1
+teste unitário, 55 testes HTTP com PostgreSQL real e 11 jornadas de navegador.
+
 Verificações finais da issue #12: lint, tipos e build passaram, assim como 1
 teste unitário, 51 testes HTTP com PostgreSQL real e 11 jornadas de navegador.
 
@@ -173,14 +183,14 @@ extraídas em `backend/.local/browser-libs`, ignoradas pelo Git.
 
 ## Próximo incremento proposto
 
-Implementar em nova solicitação a [issue #13](https://github.com/kauepacheco/nitivo/issues/13):
-cancelar após conferência da solicitação.
+Após publicar e integrar a issue #13, implementar em nova solicitação a issue
+#14, conforme a sequência do [índice do piloto](specs/tickets-primeiro-piloto-saas.md).
 
 ## Pendências de execução
 
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar as issues #13 a #23 em sequência;
+- implementar e verificar as issues #14 a #23 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 
