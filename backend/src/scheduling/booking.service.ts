@@ -352,13 +352,14 @@ export class BookingService {
       if (!isAllowedStatusTransition(appointment.status, input.status)) {
         throw new ConflictException('Transição de estado inválida');
       }
+      const changedAt = new Date(Date.now());
       const cancellation = await this.cancellationMetadata(
         tx,
         carWashId,
         appointment,
         input,
+        changedAt,
       );
-      const changedAt = new Date(Date.now());
       const updated = await tx.appointment.updateMany({
         where: { id: appointment.id, carWashId, status: appointment.status },
         data: { status: input.status },
@@ -390,6 +391,7 @@ export class BookingService {
     carWashId: string,
     appointment: { startsAt: Date },
     input: StatusChangeInput,
+    changedAt: Date,
   ) {
     if (input.status !== 'CANCELED') {
       if (input.requestedAt || input.reason?.trim()) {
@@ -408,6 +410,11 @@ export class BookingService {
       );
     }
     const requestedAt = new Date(input.requestedAt);
+    if (requestedAt.getTime() > changedAt.getTime()) {
+      throw new BadRequestException(
+        'Horário informado do pedido não pode estar no futuro',
+      );
+    }
     const carWash = await tx.carWash.findUniqueOrThrow({
       where: { id: carWashId },
       select: { changeNoticeMinutes: true },

@@ -665,6 +665,23 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     await fixture.owner.agent
       .patch(path)
       .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ status: 'CANCELED', requestedAt: '2026-09-11T10:00:00.000Z' })
+      .expect(400)
+      .expect((response) =>
+        expect(response.body).toEqual(
+          expect.objectContaining({
+            message: 'Horário informado do pedido não pode estar no futuro',
+          }),
+        ),
+      );
+
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-09-11T11:45:00.000Z').getTime());
+
+    await fixture.owner.agent
+      .patch(path)
+      .set('x-csrf-token', fixture.owner.csrfToken)
       .send({ status: 'CANCELED', requestedAt: '2026-09-11T11:30:00.000Z' })
       .expect(409);
 
