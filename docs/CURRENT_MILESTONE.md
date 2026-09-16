@@ -157,10 +157,11 @@ perder a reserva original.
 - migration registra pedido, período e box anteriores, autoria e instante da
   ação com chaves compostas no tenant; a agenda móvel exibe o pedido e quem
   efetivou a troca;
-- validação final da issue #14: lint, tipos, build, 1 teste unitário, 58 testes
+- validação final da issue #14: lint, tipos, build, 1 teste unitário, 60 testes
   HTTP com PostgreSQL real e 11 jornadas de navegador passaram; a revisão local
-  Standards/Spec corrigiu o cálculo pela duração atual do catálogo e a asserção
-  concorrente antes da validação final.
+  Standards/Spec corrigiu a exclusão da própria reserva no cálculo de
+  disponibilidade e comprovou a disputa entre reagendamentos antes da validação
+  final.
 
 ## Objetivo atual
 
@@ -180,8 +181,9 @@ isso, publicação, estado da issue, comentários e rótulos de #13 permanecem
 marcados como não verificados no índice, apesar do merge observado localmente.
 
 A issue #14 está implementada localmente na branch
-`feat/14-reagendamento-reserva`, no commit `30906dad`. Ainda não foi publicada
-nem integrada; a issue remota não foi consultada pelo mesmo bloqueio de acesso.
+`feat/14-reagendamento-reserva`, nos commits `30906dad` e `7a1d63fa`. Ela não
+está integrada à `main` local; publicação, integração remota e estado da issue
+não foram consultados pelo mesmo bloqueio de acesso.
 
 Verificações finais da issue #13: lint, tipos e build passaram, assim como 1
 teste unitário, 55 testes HTTP com PostgreSQL real e 11 jornadas de navegador.
@@ -207,7 +209,7 @@ em nova solicitação a issue #15, conforme a sequência do
 
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar as issues #14 a #23 em sequência;
+- implementar e verificar as issues #15 a #23 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 

@@ -29,7 +29,7 @@ issues #11 e #12 integradas e fechadas.
 | [#11](https://github.com/kauepacheco/nitivo/issues/11) | Sim | Sim | Sim / Sim | Fechada | `10c616ca`, `37edd93c`, merge `99c3d1f7` |
 | [#12](https://github.com/kauepacheco/nitivo/issues/12) | Sim | Sim | Sim / Sim | Fechada | `e6db0916`, `b049ba38`, integração `fe9e3ee9` |
 | [#13](https://github.com/kauepacheco/nitivo/issues/13) | Sim | Não verificado | Sim / Não verificado | Não verificada; reconciliar no GitHub | `51e7cdd3`, `b62b0496`, `1e9874d1`, merge local em `d7d155dc` |
-| [#14](https://github.com/kauepacheco/nitivo/issues/14) | Sim | Não | Não / Não | Aberta; publicação e integração pendentes | `30906dad` |
+| [#14](https://github.com/kauepacheco/nitivo/issues/14) | Sim | Não verificado | Não / Não verificado | Não verificada; publicação e integração remotas não verificadas | `30906dad`, `7a1d63fa` |
 | [#15](https://github.com/kauepacheco/nitivo/issues/15) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#16](https://github.com/kauepacheco/nitivo/issues/16) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#17](https://github.com/kauepacheco/nitivo/issues/17) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
