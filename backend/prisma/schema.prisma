@@ -39,6 +39,8 @@ model CarWash {
   customers                   Customer[]
   vehicles                    Vehicle[]
   weeklyHours                 WeeklyOpeningHour[]
+  operationalExceptions      OperationalException[]
+  availabilityBlocks         AvailabilityBlock[]
 }
 
 model Box {
@@ -50,6 +52,7 @@ model Box {
   carWash      CarWash       @relation(fields: [carWashId], references: [id], onDelete: Restrict)
   appointments Appointment[]
   previousRescheduleChanges AppointmentRescheduleChange[] @relation("PreviousRescheduleBox")
+  availabilityBlocks AvailabilityBlock[]
 
   @@unique([id, carWashId])
   @@unique([carWashId, name])
@@ -131,6 +134,38 @@ model WeeklyOpeningHour {
 
   @@unique([carWashId, weekday])
   @@index([carWashId, weekday])
+}
+
+enum OperationalExceptionKind {
+  CLOSED
+  SPECIAL_HOURS
+}
+
+model OperationalException {
+  id             String                   @id @default(cuid())
+  carWashId      String
+  date           DateTime                 @db.Date
+  kind           OperationalExceptionKind
+  opensAtMinute  Int?
+  closesAtMinute Int?
+  createdAt      DateTime                 @default(now()) @db.Timestamptz(3)
+  carWash        CarWash                  @relation(fields: [carWashId], references: [id], onDelete: Cascade)
+
+  @@unique([carWashId, date])
+}
+
+model AvailabilityBlock {
+  id        String   @id @default(cuid())
+  carWashId String
+  boxId     String?
+  startsAt  DateTime @db.Timestamptz(3)
+  endsAt    DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  carWash   CarWash  @relation(fields: [carWashId], references: [id], onDelete: Cascade)
+  box       Box?     @relation(fields: [boxId, carWashId], references: [id, carWashId], onDelete: Cascade)
+
+  @@index([carWashId, startsAt, endsAt])
+  @@index([boxId, startsAt, endsAt])
 }
 
 model User {

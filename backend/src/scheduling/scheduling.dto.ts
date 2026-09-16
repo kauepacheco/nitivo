@@ -7,6 +7,8 @@ import {
   IsArray,
   IsInt,
   IsString,
+  IsIn,
+  IsOptional,
   Matches,
   Max,
   MaxLength,
@@ -110,6 +112,12 @@ export class SchedulingSettingsDto extends UpdateSchedulingSettingsDto {
 
   @ApiProperty({ type: [BoxDto] })
   boxes!: BoxDto[];
+
+  @ApiProperty({ type: () => [OperationalExceptionDto] })
+  exceptions!: OperationalExceptionDto[];
+
+  @ApiProperty({ type: () => [AvailabilityBlockDto] })
+  blocks!: AvailabilityBlockDto[];
 }
 
 export class AvailabilitySlotDto {
@@ -129,4 +137,54 @@ export class AvailabilityDto {
 
   @ApiProperty({ type: [AvailabilitySlotDto] })
   slots!: AvailabilitySlotDto[];
+}
+
+export class UpsertOperationalExceptionDto {
+  @ApiProperty({ enum: ['CLOSED', 'SPECIAL_HOURS'] })
+  @IsIn(['CLOSED', 'SPECIAL_HOURS'])
+  kind!: 'CLOSED' | 'SPECIAL_HOURS';
+
+  @ApiProperty({ required: false, nullable: true, example: '10:00' })
+  @IsOptional()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  opensAt?: string;
+
+  @ApiProperty({ required: false, nullable: true, example: '16:00' })
+  @IsOptional()
+  @Matches(/^(?:([01]\d|2[0-3]):[0-5]\d|24:00)$/)
+  closesAt?: string;
+}
+
+export class CreateAvailabilityBlockDto {
+  @ApiProperty({
+    required: false,
+    description: 'Ausente bloqueia toda a operação',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  boxId?: string;
+
+  @ApiProperty({ example: '2026-09-18T12:00:00.000Z' })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/)
+  startsAt!: string;
+
+  @ApiProperty({ example: '2026-09-18T14:00:00.000Z' })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00\.000Z$/)
+  endsAt!: string;
+}
+
+export class OperationalExceptionDto {
+  @ApiProperty() date!: string;
+  @ApiProperty({ enum: ['CLOSED', 'SPECIAL_HOURS'] })
+  kind!: 'CLOSED' | 'SPECIAL_HOURS';
+  @ApiProperty({ nullable: true }) opensAt!: string | null;
+  @ApiProperty({ nullable: true }) closesAt!: string | null;
+}
+
+export class AvailabilityBlockDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ nullable: true }) boxId!: string | null;
+  @ApiProperty() startsAt!: string;
+  @ApiProperty() endsAt!: string;
 }

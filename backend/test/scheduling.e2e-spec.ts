@@ -47,6 +47,8 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
         slotIntervalMinutes: 30,
         weeklyHours: [],
         boxes: [],
+        exceptions: [],
+        blocks: [],
       });
   });
 
@@ -96,6 +98,8 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
           { weekday: 6, opensAt: '08:00', closesAt: '12:00' },
         ],
         boxes: [box.body],
+        exceptions: [],
+        blocks: [],
       });
 
     await ownerB.agent
@@ -266,6 +270,257 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     expect(preserved.body.boxes).toEqual([{ ...box.body, active: true }]);
     expect(preserved.body.weeklyHours).toEqual(allWeekdays());
     expect(await appointmentCount(database)).toBe(1);
+  });
+
+  it('aplica fechamentos, horarios especiais e bloqueios sem alterar reservas existentes', async () => {
+    const fixture = await bookingFixture(2);
+
+    await fixture.owner.agent
+      .put(
+        '/api/car-washes/lavacao-sol/scheduling-settings/exceptions/2026-09-12',
+      )
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ kind: 'CLOSED' })
+      .expect(200);
+    const closedDay = await request(app.getHttpServer())
+      .get('/api/public/car-washes/lavacao-sol/availability')
+      .query({ serviceId: fixture.input.serviceId, date: '2026-09-12' })
+      .expect(200);
+    expect(closedDay.body.slots).toEqual([]);
+
+    await fixture.owner.agent
+      .put(
+        '/api/car-washes/lavacao-sol/scheduling-settings/exceptions/2026-09-13',
+      )
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ kind: 'SPECIAL_HOURS', opensAt: '10:00', closesAt: '12:00' })
+      .expect(200);
+    const specialHours = await request(app.getHttpServer())
+      .get('/api/public/car-washes/lavacao-sol/availability')
+      .query({ serviceId: fixture.input.serviceId, date: '2026-09-13' })
+      .expect(200);
+    expect(specialHours.body.slots).toEqual([
+      {
+        startsAt: '2026-09-13T13:00:00.000Z',
+        endsAt: '2026-09-13T14:00:00.000Z',
+      },
+      {
+        startsAt: '2026-09-13T13:30:00.000Z',
+        endsAt: '2026-09-13T14:30:00.000Z',
+      },
+      {
+        startsAt: '2026-09-13T14:00:00.000Z',
+        endsAt: '2026-09-13T15:00:00.000Z',
+      },
+    ]);
+
+    const boxBlock = await fixture.owner.agent
+      .post('/api/car-washes/lavacao-sol/scheduling-settings/blocks')
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        boxId: fixture.boxes[0],
+        startsAt: '2026-09-11T12:00:00.000Z',
+        endsAt: '2026-09-11T13:00:00.000Z',
+      })
+      .expect(201);
+    expect(boxBlock.body).toMatchObject({
+      boxId: fixture.boxes[0],
+      startsAt: '2026-09-11T12:00:00.000Z',
+      endsAt: '2026-09-11T13:00:00.000Z',
+    });
+    await fixture.book().expect(201);
+
+    const conflict = await fixture.owner.agent
+      .post('/api/car-washes/lavacao-sol/scheduling-settings/blocks')
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        startsAt: '2026-09-11T12:00:00.000Z',
+        endsAt: '2026-09-11T13:00:00.000Z',
+      })
+      .expect(409);
+    expect(conflict.body).toMatchObject({
+      message: 'A mudança conflita com reservas futuras',
+      conflicts: [{ appointmentId: expect.any(String) }],
+    });
+    expect((await fixture.agenda().expect(200)).body.appointments).toHaveLength(
+      1,
+    );
+
+    const settings = await fixture.owner.agent
+      .get('/api/car-washes/lavacao-sol/scheduling-settings')
+      .expect(200);
+    expect(settings.body.exceptions).toEqual([
+      { date: '2026-09-12', kind: 'CLOSED', opensAt: null, closesAt: null },
+      {
+        date: '2026-09-13',
+        kind: 'SPECIAL_HOURS',
+        opensAt: '10:00',
+        closesAt: '12:00',
+      },
+    ]);
+    expect(settings.body.blocks).toEqual([boxBlock.body]);
+
+    const openApi = await request(app.getHttpServer())
+      .get('/docs-json')
+      .expect(200);
+    expect(
+      openApi.body.paths[
+        '/api/car-washes/{carWashId}/scheduling-settings/exceptions/{date}'
+      ],
+    ).toMatchObject({ put: expect.any(Object), delete: expect.any(Object) });
+    expect(
+      openApi.body.paths[
+        '/api/car-washes/{carWashId}/scheduling-settings/blocks'
+      ].post.responses,
+    ).toMatchObject({
+      201: expect.any(Object),
+      409: { description: 'Reservas futuras em conflito' },
+    });
+  });
+
+  it('restringe excecoes e bloqueios ao proprietario e ao tenant autorizado', async () => {
+    const ownerA = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-sol',
+      email: 'dona.sol@example.test',
+    });
+    const ownerB = await authenticatedOwner(database, app, {
+      carWashId: 'lavacao-lua',
+      email: 'dona.lua@example.test',
+    });
+    const boxB = await ownerB.agent
+      .post('/api/car-washes/lavacao-lua/boxes')
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send({ name: 'Box Lua' })
+      .expect(201);
+    const exceptionPath =
+      '/api/car-washes/lavacao-sol/scheduling-settings/exceptions/2026-09-12';
+    const blockPath = '/api/car-washes/lavacao-sol/scheduling-settings/blocks';
+
+    await request(app.getHttpServer())
+      .put(exceptionPath)
+      .send({ kind: 'CLOSED' })
+      .expect(401);
+    await ownerA.agent.put(exceptionPath).send({ kind: 'CLOSED' }).expect(403);
+    await ownerB.agent
+      .put(exceptionPath)
+      .set('x-csrf-token', ownerB.csrfToken)
+      .send({ kind: 'CLOSED' })
+      .expect(404);
+    await ownerA.agent
+      .post(blockPath)
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({
+        boxId: boxB.body.id,
+        startsAt: '2026-09-12T12:00:00.000Z',
+        endsAt: '2026-09-12T13:00:00.000Z',
+      })
+      .expect(404);
+
+    await changeMembershipRole(database, 'lavacao-sol', 'EMPLOYEE');
+    await ownerA.agent
+      .put(exceptionPath)
+      .set('x-csrf-token', ownerA.csrfToken)
+      .send({ kind: 'CLOSED' })
+      .expect(404);
+  });
+
+  it.each(
+    (['bloqueio', 'excecao', 'box'] as const).flatMap((change) =>
+      (['publica', 'encaixe', 'reagendamento'] as const).map(
+        (path) => [change, path] as const,
+      ),
+    ),
+  )('serializa %s com reserva %s', async (change, path) => {
+    const fixture = await bookingFixture(
+      change === 'box' && path === 'reagendamento' ? 2 : 1,
+    );
+    let targetStartsAt = fixture.input.startsAt;
+    let reserve = async () => fixture.book();
+
+    if (path === 'publica') {
+      reserve = async () => fixture.book();
+    } else if (path === 'encaixe') {
+      reserve = async () =>
+        fixture.owner.agent
+          .post('/api/car-washes/lavacao-sol/appointments/walk-ins')
+          .set('x-csrf-token', fixture.owner.csrfToken)
+          .send({
+            serviceId: fixture.input.serviceId,
+            startsAt: fixture.input.startsAt,
+            name: 'Cliente de Balcao',
+            phone: '11988880001',
+            plate: 'DEF4G56',
+          });
+    } else {
+      const original = await fixture.book().expect(201);
+      targetStartsAt = '2026-09-12T12:00:00.000Z';
+      if (change === 'box') {
+        await fixture.owner.agent
+          .post('/api/car-washes/lavacao-sol/scheduling-settings/blocks')
+          .set('x-csrf-token', fixture.owner.csrfToken)
+          .send({
+            boxId: fixture.boxes[0],
+            startsAt: targetStartsAt,
+            endsAt: '2026-09-12T13:00:00.000Z',
+          })
+          .expect(201);
+      }
+      reserve = async () =>
+        fixture.owner.agent
+          .patch(
+            `/api/car-washes/lavacao-sol/appointments/${original.body.id}/reschedule`,
+          )
+          .set('x-csrf-token', fixture.owner.csrfToken)
+          .send({
+            startsAt: targetStartsAt,
+            requestedAt: '2026-09-10T10:00:00.000Z',
+          });
+    }
+
+    const changeAvailability = () => {
+      if (change === 'excecao') {
+        return fixture.owner.agent
+          .put(
+            `/api/car-washes/lavacao-sol/scheduling-settings/exceptions/${targetStartsAt.slice(0, 10)}`,
+          )
+          .set('x-csrf-token', fixture.owner.csrfToken)
+          .send({ kind: 'CLOSED' });
+      }
+      if (change === 'box') {
+        return fixture.owner.agent
+          .patch(`/api/car-washes/lavacao-sol/boxes/${fixture.boxes.at(-1)}`)
+          .set('x-csrf-token', fixture.owner.csrfToken)
+          .send({ active: false });
+      }
+      return fixture.owner.agent
+        .post('/api/car-washes/lavacao-sol/scheduling-settings/blocks')
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({
+          startsAt: targetStartsAt,
+          endsAt: new Date(
+            new Date(targetStartsAt).getTime() + 60 * 60_000,
+          ).toISOString(),
+        });
+    };
+
+    const [reservation, availabilityChange] = await Promise.all([
+      reserve(),
+      changeAvailability(),
+    ]);
+
+    expect([
+      [path === 'reagendamento' ? 200 : 201, 409],
+      [409, change === 'bloqueio' ? 201 : 200],
+    ]).toContainEqual([reservation.status, availabilityChange.status]);
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.upcoming).toHaveLength(
+      path === 'reagendamento' || reservation.status < 300 ? 1 : 0,
+    );
+    if (path === 'reagendamento') {
+      expect(agenda.body.upcoming[0].startsAt).toBe(
+        reservation.status === 200 ? targetStartsAt : fixture.input.startsAt,
+      );
+    }
   });
 
   it('confirma reserva pública e a apresenta na agenda sem depender de WhatsApp', async () => {
