@@ -151,15 +151,13 @@ e marcar falta em atendimentos.
 
 ## Objetivo atual
 
-O GitHub foi consultado em 16 de setembro de 2026: a `main` remota está no merge
-`99c3d1f7`, que integra a issue #11. Seus critérios foram reconciliados e a issue
-foi fechada como concluída, sem o rótulo `ready-for-agent`.
+O GitHub foi consultado em 16 de setembro de 2026: a `main` remota está em
+`fe9e3ee9`, com as issues #11 e #12 integradas e fechadas.
 
 A issue #12 está implementada localmente na branch `feat/12-estados-atendimento`,
-nos commits `e6db0916` e `b049ba38`, e está integrada à `main` local por
-fast-forward. O push da `main` e a confirmação da integração remota permanecem
-pendentes. Os critérios comprovados foram marcados, o rótulo `ready-for-agent`
-foi removido e a issue permanece aberta com essa pendência. O
+nos commits `e6db0916` e `b049ba38`, e integrada à `main` local e remota. Os
+critérios comprovados foram marcados, o rótulo `ready-for-agent` foi removido e
+a issue foi fechada como concluída. O
 [índice das issues](specs/tickets-primeiro-piloto-saas.md) distingue esses estados.
 
 Verificações finais da issue #12: lint, tipos e build passaram, assim como 1
@@ -180,14 +178,11 @@ cancelar após conferência da solicitação.
 
 ## Pendências de execução
 
-- publicar a `main` e confirmar a integração remota da issue #12;
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
 - implementar e verificar as issues #13 a #23 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
-- sincronizar commits locais com o GitHub após solicitação explícita de push;
-  acesso por SSH precisa ser restabelecido nesta máquina.
 
 ## Orientação para uma nova sessão
 

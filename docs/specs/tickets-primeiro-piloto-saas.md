@@ -12,9 +12,8 @@ Nomes de migrations e commits históricos são preservados.
 “Publicado” nesta tabela significa código disponível no GitHub, não aplicação
 implantada. As especificações de todas as issues já estão publicadas. Critérios
 de estado e fluxo de atualização: [issue tracker](../agents/issue-tracker.md).
-Consulta remota em 16 de setembro de 2026 confirmou `main` em `99c3d1f7`, com a
-issue #11 integrada e fechada. A issue #12 está integrada à `main` local; o push
-da `main` e a confirmação da integração no GitHub permanecem pendentes.
+Consulta remota em 16 de setembro de 2026 confirmou `main` em `fe9e3ee9`, com as
+issues #11 e #12 integradas e fechadas.
 
 | Issue | Implementado localmente | Código publicado | Integrado à main (local / GitHub) | Issue no GitHub | Evidência local |
 | --- | --- | --- | --- | --- | --- |
@@ -28,7 +27,7 @@ da `main` e a confirmação da integração no GitHub permanecem pendentes.
 | [#9](https://github.com/kauepacheco/nitivo/issues/9) | Sim | Sim | Sim / Sim | Fechada | `219b0074`, `f41726d6` |
 | [#10](https://github.com/kauepacheco/nitivo/issues/10) | Sim | Sim | Sim / Sim | Fechada | `efd44a54`, `e86405b3` |
 | [#11](https://github.com/kauepacheco/nitivo/issues/11) | Sim | Sim | Sim / Sim | Fechada | `10c616ca`, `37edd93c`, merge `99c3d1f7` |
-| [#12](https://github.com/kauepacheco/nitivo/issues/12) | Sim | Sim | Sim / Não | Aberta; aguarda push da `main` | `e6db0916`, `b049ba38` |
+| [#12](https://github.com/kauepacheco/nitivo/issues/12) | Sim | Sim | Sim / Sim | Fechada | `e6db0916`, `b049ba38`, integração `fe9e3ee9` |
 | [#13](https://github.com/kauepacheco/nitivo/issues/13) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#14](https://github.com/kauepacheco/nitivo/issues/14) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#15](https://github.com/kauepacheco/nitivo/issues/15) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
