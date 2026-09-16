@@ -482,7 +482,10 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
       .patch(path)
       .send({ status: 'IN_PROGRESS' })
       .expect(401);
-    await fixture.owner.agent.patch(path).send({ status: 'IN_PROGRESS' }).expect(403);
+    await fixture.owner.agent
+      .patch(path)
+      .send({ status: 'IN_PROGRESS' })
+      .expect(403);
     await ownerB.agent
       .patch(path)
       .set('x-csrf-token', ownerB.csrfToken)
@@ -512,7 +515,9 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
       .send({ status: 'COMPLETED' })
       .expect(200)
       .expect((response) =>
-        expect(response.body).toEqual(expect.objectContaining({ status: 'COMPLETED' })),
+        expect(response.body).toEqual(
+          expect.objectContaining({ status: 'COMPLETED' }),
+        ),
       );
 
     const agenda = await fixture.agenda().expect(200);
@@ -524,18 +529,28 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     });
 
     const absent = await fixture
-      .book({ ...fixture.input, attemptId: randomUUID(), startsAt: '2026-09-11T13:00:00.000Z' })
+      .book({
+        ...fixture.input,
+        attemptId: randomUUID(),
+        startsAt: '2026-09-11T13:00:00.000Z',
+      })
       .expect(201);
     await fixture.owner.agent
-      .patch(`/api/car-washes/lavacao-sol/appointments/${absent.body.id}/status`)
+      .patch(
+        `/api/car-washes/lavacao-sol/appointments/${absent.body.id}/status`,
+      )
       .set('x-csrf-token', fixture.owner.csrfToken)
       .send({ status: 'NO_SHOW' })
       .expect(200)
       .expect((response) =>
-        expect(response.body).toEqual(expect.objectContaining({ status: 'NO_SHOW' })),
+        expect(response.body).toEqual(
+          expect.objectContaining({ status: 'NO_SHOW' }),
+        ),
       );
 
-    const preservedFuture = (await fixture.agenda().expect(200)).body.appointments.find(
+    const preservedFuture = (
+      await fixture.agenda().expect(200)
+    ).body.appointments.find(
       (appointment: { id: string }) => appointment.id === future.body.id,
     );
     expect(preservedFuture).toMatchObject({
@@ -565,10 +580,13 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
       await client.end();
     }
 
-    const openApi = await request(app.getHttpServer()).get('/docs-json').expect(200);
+    const openApi = await request(app.getHttpServer())
+      .get('/docs-json')
+      .expect(200);
     expect(
-      openApi.body.paths['/api/car-washes/{carWashId}/appointments/{appointmentId}/status']
-        .patch.responses,
+      openApi.body.paths[
+        '/api/car-washes/{carWashId}/appointments/{appointmentId}/status'
+      ].patch.responses,
     ).toMatchObject({
       200: {
         description:
@@ -764,6 +782,151 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
         .book({ ...fixture.input, attemptId: randomUUID() })
         .expect(201);
     }
+  });
+
+  it('reagenda após conferir o pedido, preserva os dados históricos e registra a solicitação separada da ação', async () => {
+    const fixture = await bookingFixture(2);
+    const receipt = await fixture.book().expect(201);
+    await fixture
+      .book({
+        ...fixture.input,
+        attemptId: randomUUID(),
+        startsAt: '2026-09-11T14:00:00.000Z',
+      })
+      .expect(201);
+    await fixture.owner.agent
+      .patch(`/api/car-washes/lavacao-sol/services/${fixture.input.serviceId}`)
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        name: 'Lavagem alterada',
+        priceInCents: 9900,
+        durationInMinutes: 90,
+        active: false,
+      })
+      .expect(200);
+    const requestedAt = '2026-09-11T10:00:00.000Z';
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-09-11T11:00:00.000Z').getTime());
+
+    await fixture.owner.agent
+      .patch(
+        `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/reschedule`,
+      )
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({ startsAt: '2026-09-11T14:00:00.000Z', requestedAt })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          id: receipt.body.id,
+          startsAt: '2026-09-11T14:00:00.000Z',
+          endsAt: '2026-09-11T15:00:00.000Z',
+          status: 'CONFIRMED',
+          serviceName: 'Lavagem completa',
+          servicePriceInCents: 7500,
+          serviceDurationInMinutes: 60,
+          box: { name: 'Box 1' },
+          rescheduleRequestedAt: requestedAt,
+          rescheduledAt: '2026-09-11T11:00:00.000Z',
+          rescheduledBy: {
+            user: { email: 'dona.sol@example.test' },
+          },
+        });
+      });
+
+    expect((await fixture.agenda().expect(200)).body.appointments).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: receipt.body.id,
+          startsAt: '2026-09-11T12:00:00.000Z',
+        }),
+      ]),
+    );
+  });
+
+  it('mantém integralmente a reserva original quando o novo horário está ocupado', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    await fixture
+      .book({
+        ...fixture.input,
+        attemptId: randomUUID(),
+        startsAt: '2026-09-11T14:00:00.000Z',
+      })
+      .expect(201);
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-09-11T11:00:00.000Z').getTime());
+
+    await fixture.owner.agent
+      .patch(
+        `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/reschedule`,
+      )
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        startsAt: '2026-09-11T14:00:00.000Z',
+        requestedAt: '2026-09-11T10:00:00.000Z',
+      })
+      .expect(409);
+
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.appointments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: receipt.body.id,
+          startsAt: '2026-09-11T12:00:00.000Z',
+          endsAt: '2026-09-11T13:00:00.000Z',
+          status: 'CONFIRMED',
+          serviceName: 'Lavagem completa',
+          servicePriceInCents: 7500,
+          serviceDurationInMinutes: 60,
+          rescheduleRequestedAt: null,
+        }),
+      ]),
+    );
+  });
+
+  it('serializa reagendamento e nova reserva sem liberar ou ocupar parcialmente um box', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-09-11T11:00:00.000Z').getTime());
+    const [rescheduled, replacement] = await Promise.all([
+      fixture.owner.agent
+        .patch(
+          `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/reschedule`,
+        )
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({
+          startsAt: '2026-09-11T14:00:00.000Z',
+          requestedAt: '2026-09-11T10:00:00.000Z',
+        }),
+      fixture.book({
+        ...fixture.input,
+        attemptId: randomUUID(),
+        startsAt: '2026-09-11T14:00:00.000Z',
+      }),
+    ]);
+    expect([
+      [200, 409],
+      [409, 201],
+    ]).toContainEqual([rescheduled.status, replacement.status]);
+
+    const agenda = await fixture.agenda().expect(200);
+    expect(agenda.body.appointments).toHaveLength(
+      replacement.status === 201 ? 2 : 1,
+    );
+    const original = agenda.body.appointments.find(
+      (appointment: { id: string }) => appointment.id === receipt.body.id,
+    );
+    expect(original).toMatchObject({
+      startsAt:
+        rescheduled.status === 200
+          ? '2026-09-11T14:00:00.000Z'
+          : '2026-09-11T12:00:00.000Z',
+      status: 'CONFIRMED',
+    });
   });
 
   it('permite à equipe corrigir cliente e veículo e mostra a correção na agenda', async () => {

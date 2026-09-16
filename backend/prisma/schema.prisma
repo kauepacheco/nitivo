@@ -49,6 +49,7 @@ model Box {
   createdAt    DateTime      @default(now()) @db.Timestamptz(3)
   carWash      CarWash       @relation(fields: [carWashId], references: [id], onDelete: Restrict)
   appointments Appointment[]
+  previousRescheduleChanges AppointmentRescheduleChange[] @relation("PreviousRescheduleBox")
 
   @@unique([id, carWashId])
   @@unique([carWashId, name])
@@ -108,6 +109,7 @@ model Appointment {
   serviceDurationInMinutes Int
   status                   AppointmentStatus @default(CONFIRMED)
   statusChanges            AppointmentStatusChange[]
+  rescheduleChanges        AppointmentRescheduleChange[]
   createdAt                DateTime          @default(now()) @db.Timestamptz(3)
   box                      Box               @relation(fields: [boxId, carWashId], references: [id, carWashId], onDelete: Restrict)
   serviceOffering          ServiceOffering   @relation(fields: [serviceOfferingId, carWashId], references: [id, carWashId], onDelete: Restrict)
@@ -172,6 +174,7 @@ model Membership {
   carWash             CarWash          @relation(fields: [carWashId], references: [id], onDelete: Cascade)
   appointmentsCreated Appointment[]
   appointmentStatusChanges AppointmentStatusChange[]
+  appointmentRescheduleChanges AppointmentRescheduleChange[]
 
   @@unique([userId, carWashId])
   @@unique([id, carWashId])
@@ -194,6 +197,25 @@ model AppointmentStatusChange {
   @@index([appointmentId, changedAt])
   @@index([carWashId, changedAt])
   @@index([changedByMembershipId, carWashId])
+}
+
+model AppointmentRescheduleChange {
+  id                      String      @id @default(cuid())
+  appointmentId           String
+  carWashId               String
+  previousBoxId           String
+  previousStartsAt        DateTime    @db.Timestamptz(3)
+  previousEndsAt          DateTime    @db.Timestamptz(3)
+  requestedAt             DateTime    @db.Timestamptz(3)
+  rescheduledAt           DateTime    @db.Timestamptz(3)
+  rescheduledByMembershipId String
+  appointment             Appointment @relation(fields: [appointmentId, carWashId], references: [id, carWashId], onDelete: Restrict)
+  previousBox             Box         @relation("PreviousRescheduleBox", fields: [previousBoxId, carWashId], references: [id, carWashId], onDelete: Restrict)
+  rescheduledBy           Membership  @relation(fields: [rescheduledByMembershipId, carWashId], references: [id, carWashId], onDelete: Restrict)
+
+  @@index([appointmentId, rescheduledAt])
+  @@index([carWashId, rescheduledAt])
+  @@index([rescheduledByMembershipId, carWashId])
 }
 
 model AccessToken {

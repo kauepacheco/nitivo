@@ -158,9 +158,17 @@ export class SchedulingService {
     return this.calculateAvailability(slug, query, database, 'TEAM');
   }
 
+  async getWalkInAvailabilityForDuration(
+    slug: string,
+    query: { date: string; durationInMinutes: number },
+    database: Prisma.TransactionClient = this.prisma,
+  ) {
+    return this.calculateAvailability(slug, query, database, 'TEAM');
+  }
+
   private async calculateAvailability(
     slug: string,
-    query: AvailabilityQueryDto,
+    query: AvailabilityQueryDto | { date: string; durationInMinutes: number },
     database: Prisma.TransactionClient,
     origin: 'PUBLIC' | 'TEAM',
   ) {
@@ -181,13 +189,25 @@ export class SchedulingService {
           where: { weekday: weekday(query.date) },
           select: { opensAtMinute: true, closesAtMinute: true },
         },
-        services: {
-          where: { id: query.serviceId, active: true },
-          select: { id: true, durationInMinutes: true },
-        },
       },
     });
-    if (!carWash || carWash.services.length === 0) {
+    if (!carWash) {
+      throw new NotFoundException('Lavação ou serviço não encontrado');
+    }
+    const durationInMinutes =
+      'durationInMinutes' in query
+        ? query.durationInMinutes
+        : (
+            await database.serviceOffering.findFirst({
+              where: {
+                id: query.serviceId,
+                carWashId: carWash.id,
+                active: true,
+              },
+              select: { durationInMinutes: true },
+            })
+          )?.durationInMinutes;
+    if (!durationInMinutes) {
       throw new NotFoundException('Lavação ou serviço não encontrado');
     }
 
@@ -207,7 +227,6 @@ export class SchedulingService {
     const hours = carWash.weeklyHours[0];
     if (!hours || carWash.boxes.length === 0) return response;
 
-    const service = carWash.services[0];
     const opening = localDateTime(
       query.date,
       hours.opensAtMinute,
@@ -234,14 +253,14 @@ export class SchedulingService {
     );
     for (
       let minute = hours.opensAtMinute;
-      minute + service.durationInMinutes <= hours.closesAtMinute;
+      minute + durationInMinutes <= hours.closesAtMinute;
       minute += carWash.slotIntervalMinutes
     ) {
       const startsAt = localDateTime(query.date, minute, carWash.timezone);
       if (startsAt < earliest) continue;
       const endsAt = localDateTime(
         query.date,
-        minute + service.durationInMinutes,
+        minute + durationInMinutes,
         carWash.timezone,
       );
       const occupiedBoxIds = new Set(
