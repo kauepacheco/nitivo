@@ -12,8 +12,9 @@ Nomes de migrations e commits históricos são preservados.
 “Publicado” nesta tabela significa código disponível no GitHub, não aplicação
 implantada. As especificações de todas as issues já estão publicadas. Critérios
 de estado e fluxo de atualização: [issue tracker](../agents/issue-tracker.md).
-Consulta remota em 16 de setembro de 2026 confirmou `main` em `fe9e3ee9`, com as
-issues #11 e #12 integradas e fechadas.
+Consulta remota em 16 de setembro de 2026 confirmou `main` em `9aabcbc8`, com as
+issues #13 e #14 integradas. Seus corpos e estados no GitHub ainda descrevem
+etapas anteriores e aguardam reconciliação autorizada.
 
 | Issue | Implementado localmente | Código publicado | Integrado à main (local / GitHub) | Issue no GitHub | Evidência local |
 | --- | --- | --- | --- | --- | --- |
@@ -28,9 +29,9 @@ issues #11 e #12 integradas e fechadas.
 | [#10](https://github.com/kauepacheco/nitivo/issues/10) | Sim | Sim | Sim / Sim | Fechada | `efd44a54`, `e86405b3` |
 | [#11](https://github.com/kauepacheco/nitivo/issues/11) | Sim | Sim | Sim / Sim | Fechada | `10c616ca`, `37edd93c`, merge `99c3d1f7` |
 | [#12](https://github.com/kauepacheco/nitivo/issues/12) | Sim | Sim | Sim / Sim | Fechada | `e6db0916`, `b049ba38`, integração `fe9e3ee9` |
-| [#13](https://github.com/kauepacheco/nitivo/issues/13) | Sim | Não verificado | Sim / Não verificado | Não verificada; reconciliar no GitHub | `51e7cdd3`, `b62b0496`, `1e9874d1`, merge local em `d7d155dc` |
-| [#14](https://github.com/kauepacheco/nitivo/issues/14) | Sim | Não verificado | Não / Não verificado | Não verificada; publicação e integração remotas não verificadas | `30906dad`, `7a1d63fa` |
-| [#15](https://github.com/kauepacheco/nitivo/issues/15) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
+| [#13](https://github.com/kauepacheco/nitivo/issues/13) | Sim | Sim | Sim / Sim | Aberta; corpo e fechamento pendentes no GitHub | `51e7cdd3`, `b62b0496`, `1e9874d1`, merge `d7d155dc` |
+| [#14](https://github.com/kauepacheco/nitivo/issues/14) | Sim | Sim | Sim / Sim | Aberta com `ready-for-agent`; critérios, rótulo e fechamento pendentes no GitHub | `30906dad`, `7a1d63fa`, merge `9aabcbc8` |
+| [#15](https://github.com/kauepacheco/nitivo/issues/15) | Sim | Não | Não / Não | Aberta com `ready-for-agent`; publicação e reconciliação pendentes | `9932c993` |
 | [#16](https://github.com/kauepacheco/nitivo/issues/16) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#17](https://github.com/kauepacheco/nitivo/issues/17) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#18](https://github.com/kauepacheco/nitivo/issues/18) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
@@ -226,8 +227,8 @@ As dependências representam entregas necessárias; dados fictícios permitem ve
 
 **Histórias da especificação:** 48, 49, 50.
 
-- [ ] Consulta pública, confirmação, encaixe e reagendamento respeitam a mudança; nenhum compromisso existente é movido ou cancelado silenciosamente.
-- [ ] Testar concorrência entre alterações operacionais e todos os caminhos de reserva, além dos conflitos de expediente já cobertos na issue #6.
+- [x] Consulta pública, confirmação, encaixe e reagendamento respeitam a mudança; nenhum compromisso existente é movido ou cancelado silenciosamente.
+- [x] Testar concorrência entre alterações operacionais e todos os caminhos de reserva, além dos conflitos de expediente já cobertos na issue #6.
 
 ## Issue #16 — Consultar indicadores operacionais
 

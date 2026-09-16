@@ -52,6 +52,18 @@ type SchedulingSettings = {
     closesAt: string;
   }>;
   boxes: Array<{ id: string; name: string; active: boolean }>;
+  exceptions: Array<{
+    date: string;
+    kind: 'CLOSED' | 'SPECIAL_HOURS';
+    opensAt: string | null;
+    closesAt: string | null;
+  }>;
+  blocks: Array<{
+    id: string;
+    boxId: string | null;
+    startsAt: string;
+    endsAt: string;
+  }>;
 };
 
 type Availability = {
@@ -874,7 +886,7 @@ function SchedulingManagement({
       await loadSettings();
       setMessage('Box cadastrado.');
     } catch (error) {
-      setMessage(errorMessage(error));
+      setMessage(errorMessage(error, settings?.timezone));
     }
   }
 
@@ -912,7 +924,7 @@ function SchedulingManagement({
       setSettings(result);
       setMessage('Agenda atualizada.');
     } catch (error) {
-      setMessage(errorMessage(error));
+      setMessage(errorMessage(error, settings?.timezone));
     }
   }
 
@@ -926,7 +938,100 @@ function SchedulingManagement({
       await loadSettings();
       setMessage(`Box ${box.active ? 'desativado' : 'ativado'}.`);
     } catch (error) {
-      setMessage(errorMessage(error));
+      setMessage(errorMessage(error, settings?.timezone));
+    }
+  }
+
+  async function saveException(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const kind = String(form.get('kind')) as 'CLOSED' | 'SPECIAL_HOURS';
+    const date = String(form.get('date'));
+    try {
+      await api(
+        `/api/car-washes/${membership.carWashId}/scheduling-settings/exceptions/${date}`,
+        {
+          method: 'PUT',
+          headers: { 'x-csrf-token': session.csrfToken },
+          body: JSON.stringify(
+            kind === 'CLOSED'
+              ? { kind }
+              : {
+                  kind,
+                  opensAt: form.get('opensAt'),
+                  closesAt: form.get('closesAt'),
+                },
+          ),
+        },
+      );
+      await loadSettings();
+      setMessage('Exceção salva.');
+    } catch (error) {
+      setMessage(errorMessage(error, settings?.timezone));
+    }
+  }
+
+  async function removeException(date: string) {
+    try {
+      await api(
+        `/api/car-washes/${membership.carWashId}/scheduling-settings/exceptions/${date}`,
+        {
+          method: 'DELETE',
+          headers: { 'x-csrf-token': session.csrfToken },
+        },
+      );
+      await loadSettings();
+      setMessage('Exceção removida.');
+    } catch (error) {
+      setMessage(errorMessage(error, settings?.timezone));
+    }
+  }
+
+  async function createBlock(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const boxId = String(form.get('boxId'));
+    try {
+      await api(
+        `/api/car-washes/${membership.carWashId}/scheduling-settings/blocks`,
+        {
+          method: 'POST',
+          headers: { 'x-csrf-token': session.csrfToken },
+          body: JSON.stringify({
+            ...(boxId ? { boxId } : {}),
+            startsAt: localInputToInstant(
+              String(form.get('startsAt')),
+              settings!.timezone,
+            ),
+            endsAt: localInputToInstant(
+              String(form.get('endsAt')),
+              settings!.timezone,
+            ),
+          }),
+        },
+      );
+      formElement.reset();
+      await loadSettings();
+      setMessage('Bloqueio criado.');
+    } catch (error) {
+      setMessage(errorMessage(error, settings?.timezone));
+    }
+  }
+
+  async function removeBlock(blockId: string) {
+    try {
+      await api(
+        `/api/car-washes/${membership.carWashId}/scheduling-settings/blocks/${blockId}`,
+        {
+          method: 'DELETE',
+          headers: { 'x-csrf-token': session.csrfToken },
+        },
+      );
+      await loadSettings();
+      setMessage('Bloqueio removido.');
+    } catch (error) {
+      setMessage(errorMessage(error, settings?.timezone));
     }
   }
 
@@ -938,102 +1043,247 @@ function SchedulingManagement({
         <p>Configure os boxes, o expediente semanal e as regras de reserva.</p>
       </div>
       {settings ? (
-        <div className="columns scheduling-columns">
-          <section className="panel">
-            <h2>Boxes</h2>
-            <form onSubmit={createBox}>
-              <label>
-                Nome do box
-                <input name="name" maxLength={80} required />
-              </label>
-              <button type="submit">Cadastrar box</button>
-            </form>
-            <ul className="service-list">
-              {settings.boxes.map((box) => (
-                <li key={box.id}>
-                  <div>
-                    <strong>{box.name}</strong>
-                    <span>{box.active ? 'Ativo' : 'Inativo'}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="secondary inline-button"
-                    onClick={() => void toggleBox(box)}
-                  >
-                    {box.active ? 'Desativar' : 'Ativar'}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-          <section className="panel">
-            <h2>Expediente e políticas</h2>
-            <form onSubmit={saveSettings}>
-              <div className="policy-grid">
-                <NumberField
-                  name="minimumBookingNoticeMinutes"
-                  label="Antecedência mínima (min)"
-                  value={settings.minimumBookingNoticeMinutes}
-                  min={0}
-                />
-                <NumberField
-                  name="bookingHorizonDays"
-                  label="Horizonte de reservas (dias)"
-                  value={settings.bookingHorizonDays}
-                  min={1}
-                />
-                <NumberField
-                  name="changeNoticeMinutes"
-                  label="Prazo para alterações (min)"
-                  value={settings.changeNoticeMinutes}
-                  min={0}
-                />
-                <NumberField
-                  name="slotIntervalMinutes"
-                  label="Intervalo entre inícios (min)"
-                  value={settings.slotIntervalMinutes}
-                  min={5}
-                />
-              </div>
-              <div className="week-grid">
-                {weekdayLabels.map((label, weekday) => {
-                  const hours = settings.weeklyHours.find(
-                    (candidate) => candidate.weekday === weekday,
-                  );
-                  return (
-                    <div className="weekday" key={label}>
-                      <label className="checkbox">
-                        <input
-                          name={`open-${weekday}`}
-                          type="checkbox"
-                          defaultChecked={Boolean(hours)}
-                        />
-                        {label} aberto
-                      </label>
-                      <input
-                        aria-label={`${label} abre`}
-                        name={`opens-${weekday}`}
-                        type="time"
-                        defaultValue={hours?.opensAt ?? '08:00'}
-                      />
-                      <input
-                        aria-label={`${label} fecha`}
-                        name={`closes-${weekday}`}
-                        type="time"
-                        defaultValue={hours?.closesAt ?? '18:00'}
-                      />
+        <>
+          <div className="columns scheduling-columns">
+            <section className="panel">
+              <h2>Boxes</h2>
+              <form onSubmit={createBox}>
+                <label>
+                  Nome do box
+                  <input name="name" maxLength={80} required />
+                </label>
+                <button type="submit">Cadastrar box</button>
+              </form>
+              <ul className="service-list">
+                {settings.boxes.map((box) => (
+                  <li key={box.id}>
+                    <div>
+                      <strong>{box.name}</strong>
+                      <span>{box.active ? 'Ativo' : 'Inativo'}</span>
                     </div>
-                  );
-                })}
-              </div>
-              <button type="submit">Salvar agenda</button>
-            </form>
-          </section>
-        </div>
+                    <button
+                      type="button"
+                      className="secondary inline-button"
+                      onClick={() => void toggleBox(box)}
+                    >
+                      {box.active ? 'Desativar' : 'Ativar'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <section className="panel">
+              <h2>Expediente e políticas</h2>
+              <form onSubmit={saveSettings}>
+                <div className="policy-grid">
+                  <NumberField
+                    name="minimumBookingNoticeMinutes"
+                    label="Antecedência mínima (min)"
+                    value={settings.minimumBookingNoticeMinutes}
+                    min={0}
+                  />
+                  <NumberField
+                    name="bookingHorizonDays"
+                    label="Horizonte de reservas (dias)"
+                    value={settings.bookingHorizonDays}
+                    min={1}
+                  />
+                  <NumberField
+                    name="changeNoticeMinutes"
+                    label="Prazo para alterações (min)"
+                    value={settings.changeNoticeMinutes}
+                    min={0}
+                  />
+                  <NumberField
+                    name="slotIntervalMinutes"
+                    label="Intervalo entre inícios (min)"
+                    value={settings.slotIntervalMinutes}
+                    min={5}
+                  />
+                </div>
+                <div className="week-grid">
+                  {weekdayLabels.map((label, weekday) => {
+                    const hours = settings.weeklyHours.find(
+                      (candidate) => candidate.weekday === weekday,
+                    );
+                    return (
+                      <div className="weekday" key={label}>
+                        <label className="checkbox">
+                          <input
+                            name={`open-${weekday}`}
+                            type="checkbox"
+                            defaultChecked={Boolean(hours)}
+                          />
+                          {label} aberto
+                        </label>
+                        <input
+                          aria-label={`${label} abre`}
+                          name={`opens-${weekday}`}
+                          type="time"
+                          defaultValue={hours?.opensAt ?? '08:00'}
+                        />
+                        <input
+                          aria-label={`${label} fecha`}
+                          name={`closes-${weekday}`}
+                          type="time"
+                          defaultValue={hours?.closesAt ?? '18:00'}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <button type="submit">Salvar agenda</button>
+              </form>
+            </section>
+          </div>
+          <div className="columns scheduling-columns">
+            <section className="panel">
+              <h2>Feriados e horários especiais</h2>
+              <form onSubmit={saveException}>
+                <label>
+                  Data da exceção
+                  <input name="date" type="date" required />
+                </label>
+                <label>
+                  Tipo da exceção
+                  <select name="kind" defaultValue="CLOSED">
+                    <option value="CLOSED">Fechado</option>
+                    <option value="SPECIAL_HOURS">Horário especial</option>
+                  </select>
+                </label>
+                <div className="field-row">
+                  <label>
+                    Abertura especial
+                    <input name="opensAt" type="time" defaultValue="08:00" />
+                  </label>
+                  <label>
+                    Fechamento especial
+                    <input name="closesAt" type="time" defaultValue="18:00" />
+                  </label>
+                </div>
+                <button type="submit">Salvar exceção</button>
+              </form>
+              <ul className="service-list" aria-label="Exceções cadastradas">
+                {settings.exceptions.map((exception) => (
+                  <li key={exception.date}>
+                    <div>
+                      <strong>{formatDate(exception.date)}</strong>
+                      <span>
+                        {exception.kind === 'CLOSED'
+                          ? 'Fechado'
+                          : `${exception.opensAt}–${exception.closesAt}`}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary inline-button"
+                      onClick={() => void removeException(exception.date)}
+                    >
+                      Remover
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <section className="panel">
+              <h2>Bloqueios</h2>
+              <form onSubmit={createBlock}>
+                <label>
+                  Recurso bloqueado
+                  <select name="boxId" defaultValue="">
+                    <option value="">Toda a operação</option>
+                    {settings.boxes.map((box) => (
+                      <option key={box.id} value={box.id}>
+                        {box.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Início do bloqueio
+                  <input name="startsAt" type="datetime-local" required />
+                </label>
+                <label>
+                  Fim do bloqueio
+                  <input name="endsAt" type="datetime-local" required />
+                </label>
+                <button type="submit">Criar bloqueio</button>
+              </form>
+              <ul className="service-list" aria-label="Bloqueios cadastrados">
+                {settings.blocks.map((block) => (
+                  <li key={block.id}>
+                    <div>
+                      <strong>
+                        {block.boxId
+                          ? (settings.boxes.find(
+                              (box) => box.id === block.boxId,
+                            )?.name ?? 'Box removido')
+                          : 'Toda a operação'}
+                      </strong>
+                      <span>
+                        {formatInstant(block.startsAt, settings.timezone)}–
+                        {formatInstant(block.endsAt, settings.timezone)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary inline-button"
+                      onClick={() => void removeBlock(block.id)}
+                    >
+                      Remover
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+        </>
       ) : null}
       <Status message={message} />
     </section>
   );
+}
+
+function localInputToInstant(value: string, timezone: string) {
+  const [date, time] = value.split('T');
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  const desired = Date.UTC(year, month - 1, day, hour, minute);
+  let instant = desired;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(instant));
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      Number(parts.find((candidate) => candidate.type === type)?.value);
+    const actual = Date.UTC(
+      part('year'),
+      part('month') - 1,
+      part('day'),
+      part('hour'),
+      part('minute'),
+    );
+    instant += desired - actual;
+  }
+  return new Date(instant).toISOString();
+}
+
+function formatDate(date: string) {
+  return `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
+}
+
+function formatInstant(instant: string, timezone: string) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: timezone,
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(instant));
 }
 
 function NumberField({

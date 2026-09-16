@@ -1,7 +1,14 @@
+type SchedulingConflict = {
+  appointmentId: string;
+  startsAt: string;
+  endsAt: string;
+};
+
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly conflicts: SchedulingConflict[] = [],
   ) {
     super(message);
   }
@@ -19,6 +26,7 @@ export async function api<T = void>(
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as {
       message?: string | string[];
+      conflicts?: SchedulingConflict[];
     };
     const message = Array.isArray(body.message)
       ? body.message.join('. ')
@@ -26,6 +34,7 @@ export async function api<T = void>(
     throw new ApiError(
       message ?? 'Não foi possível concluir a operação.',
       response.status,
+      body.conflicts,
     );
   }
   return response.status === 204
@@ -33,7 +42,22 @@ export async function api<T = void>(
     : ((await response.json()) as T);
 }
 
-export function errorMessage(error: unknown) {
+export function errorMessage(error: unknown, timezone?: string) {
+  if (error instanceof ApiError && error.conflicts.length > 0) {
+    const conflicts = error.conflicts
+      .map(
+        (conflict) =>
+          `${new Date(conflict.startsAt).toLocaleString('pt-BR', {
+            timeZone: timezone,
+          })}–${new Date(conflict.endsAt).toLocaleTimeString('pt-BR', {
+            timeZone: timezone,
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`,
+      )
+      .join(', ');
+    return `${error.message}: ${conflicts}. Nenhuma reserva foi alterada.`;
+  }
   return error instanceof Error
     ? error.message
     : 'Não foi possível concluir a operação.';

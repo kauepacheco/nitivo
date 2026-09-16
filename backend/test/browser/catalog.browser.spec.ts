@@ -391,6 +391,68 @@ test('proprietário configura capacidade e cliente consulta horários no celular
   ).not.toBeVisible();
 });
 
+test('proprietário aplica exceção e bloqueio operacional no celular', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const setupLink = provisionOwner({
+    baseUrl,
+    carWashName: 'Lavação Horizonte',
+    slug: 'lavacao-horizonte',
+    email: 'dona.horizonte@example.test',
+  });
+  await page.goto(setupLink);
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Definir senha' }).click();
+  await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+
+  await page.getByLabel('Nome', { exact: true }).fill('Lavagem completa');
+  await page.getByLabel('Preço (R$)').fill('75.00');
+  await page.getByLabel('Duração (min)').fill('60');
+  await page.getByRole('button', { name: 'Cadastrar serviço' }).click();
+  await page.getByLabel('Nome do box').fill('Box principal');
+  await page.getByRole('button', { name: 'Cadastrar box' }).click();
+  const date = futureDateInSaoPaulo(2);
+  const weekdayLabel = weekdayLabels[new Date(`${date}T12:00:00Z`).getUTCDay()];
+  await page.getByLabel(`${weekdayLabel} aberto`).check();
+  await page.getByRole('button', { name: 'Salvar agenda' }).click();
+
+  await page.getByLabel('Data da exceção').fill(date);
+  await page.getByLabel('Tipo da exceção').selectOption('CLOSED');
+  await page.getByRole('button', { name: 'Salvar exceção' }).click();
+  await expect(page.getByText('Exceção salva.')).toBeVisible();
+  await expect(page.getByLabel('Exceções cadastradas')).toContainText(
+    'Fechado',
+  );
+
+  await page.goto(`${baseUrl}/lavacoes/lavacao-horizonte`);
+  await page.getByLabel('Serviço para agendar').selectOption({
+    label: 'Lavagem completa — 60 min',
+  });
+  await page.getByLabel('Data do atendimento').fill(date);
+  await page.getByRole('button', { name: 'Consultar horários' }).click();
+  await expect(
+    page.getByText('Nenhum horário disponível nesta data.'),
+  ).toBeVisible();
+
+  await page.goto(baseUrl);
+  await page
+    .getByLabel('Exceções cadastradas')
+    .getByRole('button', {
+      name: 'Remover',
+    })
+    .click();
+  await page.getByLabel('Início do bloqueio').fill(`${date}T08:00`);
+  await page.getByLabel('Fim do bloqueio').fill(`${date}T18:00`);
+  await page.getByRole('button', { name: 'Criar bloqueio' }).click();
+  await expect(page.getByText('Bloqueio criado.')).toBeVisible();
+  await expect(page.getByLabel('Bloqueios cadastrados')).toContainText(
+    'Toda a operação',
+  );
+});
+
 test('equipe registra encaixe pela agenda no celular', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const setupLink = provisionOwner({

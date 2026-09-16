@@ -4,9 +4,11 @@ import {
   Get,
   Param,
   Patch,
+  Delete,
   Post,
   Put,
   Query,
+  HttpCode,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -16,6 +18,7 @@ import {
   ApiHeader,
   ApiOkResponse,
   ApiTags,
+  ApiNoContentResponse,
 } from '@nestjs/swagger';
 import { CsrfGuard } from '../identity-access/csrf.guard';
 import { OwnerMembershipGuard } from '../identity-access/owner-membership.guard';
@@ -29,6 +32,10 @@ import {
   UpdateBoxDto,
   AvailabilityQueryDto,
   UpdateSchedulingSettingsDto,
+  UpsertOperationalExceptionDto,
+  CreateAvailabilityBlockDto,
+  OperationalExceptionDto,
+  AvailabilityBlockDto,
 } from './scheduling.dto';
 
 @ApiTags('Configuração da agenda')
@@ -60,6 +67,55 @@ export class SchedulingController {
     @Body() input: UpdateSchedulingSettingsDto,
   ) {
     return this.scheduling.updateSettings(carWashId, input);
+  }
+
+  @Put('exceptions/:date')
+  @UseGuards(CsrfGuard)
+  @ApiHeader({ name: 'x-csrf-token', required: true })
+  @ApiOkResponse({ type: OperationalExceptionDto })
+  @ApiConflictResponse({ description: 'Reservas futuras em conflito' })
+  upsertException(
+    @Param('carWashId') carWashId: string,
+    @Param('date') date: string,
+    @Body() input: UpsertOperationalExceptionDto,
+  ) {
+    return this.scheduling.upsertException(carWashId, date, input);
+  }
+
+  @Delete('exceptions/:date')
+  @HttpCode(204)
+  @UseGuards(CsrfGuard)
+  @ApiHeader({ name: 'x-csrf-token', required: true })
+  @ApiNoContentResponse({ description: 'Exceção removida' })
+  async deleteException(
+    @Param('carWashId') carWashId: string,
+    @Param('date') date: string,
+  ) {
+    await this.scheduling.deleteException(carWashId, date);
+  }
+
+  @Post('blocks')
+  @UseGuards(CsrfGuard)
+  @ApiHeader({ name: 'x-csrf-token', required: true })
+  @ApiCreatedResponse({ type: AvailabilityBlockDto })
+  @ApiConflictResponse({ description: 'Reservas futuras em conflito' })
+  createBlock(
+    @Param('carWashId') carWashId: string,
+    @Body() input: CreateAvailabilityBlockDto,
+  ) {
+    return this.scheduling.createBlock(carWashId, input);
+  }
+
+  @Delete('blocks/:blockId')
+  @HttpCode(204)
+  @UseGuards(CsrfGuard)
+  @ApiHeader({ name: 'x-csrf-token', required: true })
+  @ApiNoContentResponse({ description: 'Bloqueio removido' })
+  async deleteBlock(
+    @Param('carWashId') carWashId: string,
+    @Param('blockId') blockId: string,
+  ) {
+    await this.scheduling.deleteBlock(carWashId, blockId);
   }
 }
 

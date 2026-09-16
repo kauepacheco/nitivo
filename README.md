@@ -19,6 +19,8 @@ podem corrigir pela agenda o nome, o telefone e a placa usados na operação.
 Também podem consultar horários e registrar encaixes com autoria, sem aplicar a
 antecedência reservada ao autoagendamento. A equipe pode iniciar, concluir e
 marcar falta, conferindo na agenda a autoria e o momento da última mudança.
+O proprietário também configura fechamentos, horários especiais e bloqueios por
+box ou gerais; conflitos futuros são mostrados sem alterar os compromissos.
 As funcionalidades abaixo descrevem o produto
 planejado; o estado de implementação está no
 [marco atual](docs/CURRENT_MILESTONE.md).

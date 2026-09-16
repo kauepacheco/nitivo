@@ -707,6 +707,21 @@ async function findAvailableBox(
           endsAt: { gt: input.startsAt },
         },
       },
+      availabilityBlocks: {
+        none: {
+          startsAt: { lt: input.endsAt },
+          endsAt: { gt: input.startsAt },
+        },
+      },
+      carWash: {
+        availabilityBlocks: {
+          none: {
+            boxId: null,
+            startsAt: { lt: input.endsAt },
+            endsAt: { gt: input.startsAt },
+          },
+        },
+      },
     },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   });

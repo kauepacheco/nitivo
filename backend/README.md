@@ -124,16 +124,18 @@ expõe membros da equipe ou dados internos do tenant.
 
 Em **Capacidade e agenda**, o proprietário cadastra e ativa ou desativa boxes,
 define o expediente semanal e ajusta antecedência, horizonte, prazo para
-alterações e intervalo entre possíveis inícios. Os valores iniciais são 60
-minutos, 30 dias, 120 minutos e 30 minutos, respectivamente, no fuso
-`America/Sao_Paulo`. Uma redução de expediente ou capacidade que conflite com
-reservas futuras não é aplicada; a API devolve as reservas conflitantes para
-conferência, sem alterá-las.
+alterações e intervalo entre possíveis inícios. Também registra fechamentos ou
+horários especiais por data e bloqueios temporários para um box ou para toda a
+operação. Os valores iniciais são 60 minutos, 30 dias, 120 minutos e 30 minutos,
+respectivamente, no fuso `America/Sao_Paulo`. Uma redução de expediente ou
+capacidade, exceção ou bloqueio que conflite com reservas futuras não é aplicada;
+a interface mostra os períodos conflitantes para conferência, sem mover nem
+cancelar os compromissos.
 
 Na página pública, o cliente escolhe um serviço e uma data para consultar os
-horários. O cálculo considera duração, expediente, boxes ativos, antecedência,
-horizonte e reservas existentes. Exceções de calendário e bloqueios serão
-acrescentados em um incremento posterior.
+horários. O cálculo considera duração, expediente semanal, exceção da data,
+boxes ativos, bloqueios, antecedência, horizonte e reservas existentes. A mesma
+regra é revalidada ao confirmar uma reserva, registrar um encaixe ou reagendar.
 
 Em produção, a sessão usa cookie `Secure`, `HttpOnly` e `SameSite=Strict`.
 Operações autenticadas que alteram estado também exigem o token CSRF devolvido
@@ -178,9 +180,10 @@ dependem da conferência e do registro pela equipe no Nitivo.
   autoria e o nome, preço e duração históricos do serviço.
   Comprovante e agenda usam `Cache-Control: no-store`.
 
-Confirmação e mudanças de expediente/desativação de box obtêm a mesma trava
-`FOR UPDATE` na lavação antes de consultar disponibilidade/conflitos. Cliente,
-veículo e reserva são gravados em uma transação. A migration instala `btree_gist`
+Confirmação, encaixe, reagendamento e mudanças que retiram disponibilidade obtêm
+a mesma trava `FOR UPDATE` na lavação antes de consultar
+disponibilidade/conflitos. Cliente, veículo e reserva são gravados em uma
+transação. A migration instala `btree_gist`
 e uma exclusion constraint de intervalos `[início, fim)` para reservas
 CONFIRMED/IN_PROGRESS do mesmo box; término e início adjacentes são permitidos.
 A conta que aplica migrations precisa poder criar essa extensão. Sobreposições
