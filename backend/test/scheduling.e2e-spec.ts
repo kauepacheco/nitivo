@@ -626,6 +626,10 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
       .book({ ...fixture.input, attemptId: randomUUID() })
       .expect(409);
 
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-09-11T11:00:00.000Z').getTime());
+
     await fixture.owner.agent
       .patch(path)
       .set('x-csrf-token', fixture.owner.csrfToken)
