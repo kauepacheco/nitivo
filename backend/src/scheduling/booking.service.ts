@@ -222,6 +222,7 @@ export class BookingService {
     return this.scheduling.getWalkInAvailabilityForDuration(carWash.slug, {
       date,
       durationInMinutes: appointment.serviceDurationInMinutes,
+      excludingAppointmentId: appointmentId,
     });
   }
 
@@ -424,6 +425,7 @@ export class BookingService {
           {
             date: localDate(startsAt, carWash.timezone),
             durationInMinutes: appointment.serviceDurationInMinutes,
+            excludingAppointmentId: appointment.id,
           },
           tx,
         );

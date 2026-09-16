@@ -444,7 +444,7 @@ test('equipe registra encaixe pela agenda no celular', async ({ page }) => {
     .click();
   await page
     .getByLabel('Horário informado do pedido (opcional)')
-    .fill(`${date}T06:00`);
+    .fill(`${futureDateInSaoPaulo(-1)}T06:00`);
   await page.getByRole('button', { name: 'Confirmar cancelamento' }).click();
   await expect(page.getByText('Agendamento cancelado.')).toBeVisible();
   await expect(appointment).toContainText('Cancelado');

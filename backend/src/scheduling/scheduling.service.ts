@@ -160,7 +160,11 @@ export class SchedulingService {
 
   async getWalkInAvailabilityForDuration(
     slug: string,
-    query: { date: string; durationInMinutes: number },
+    query: {
+      date: string;
+      durationInMinutes: number;
+      excludingAppointmentId?: string;
+    },
     database: Prisma.TransactionClient = this.prisma,
   ) {
     return this.calculateAvailability(slug, query, database, 'TEAM');
@@ -239,6 +243,10 @@ export class SchedulingService {
     );
     const occupied = await database.appointment.findMany({
       where: {
+        id:
+          'excludingAppointmentId' in query && query.excludingAppointmentId
+            ? { not: query.excludingAppointmentId }
+            : undefined,
         carWashId: carWash.id,
         status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
         startsAt: { lt: closing },

@@ -589,7 +589,6 @@ export function TeamAgenda({
               onChangeStatus={changeStatus}
               onReschedule={reschedule}
               carWashId={carWashId}
-              csrfToken={csrfToken}
             />
           </section>
           <section aria-label="Próximos atendimentos">
@@ -602,7 +601,6 @@ export function TeamAgenda({
               onChangeStatus={changeStatus}
               onReschedule={reschedule}
               carWashId={carWashId}
-              csrfToken={csrfToken}
             />
           </section>
         </>
@@ -618,7 +616,6 @@ function AppointmentList({
   onChangeStatus,
   onReschedule,
   carWashId,
-  csrfToken,
 }: {
   appointments: Appointment[];
   timezone: string;
@@ -636,7 +633,6 @@ function AppointmentList({
     input: RescheduleInput,
   ) => Promise<boolean>;
   carWashId: string;
-  csrfToken: string;
 }) {
   const [editingAppointmentId, setEditingAppointmentId] = useState<
     string | null
@@ -663,7 +659,6 @@ function AppointmentList({
             onChangeStatus={onChangeStatus}
             onReschedule={onReschedule}
             carWashId={carWashId}
-            csrfToken={csrfToken}
           />
           {appointment.statusChangedBy && appointment.statusChangedAt ? (
             <p>
@@ -742,7 +737,6 @@ function AppointmentStatusActions({
   onChangeStatus,
   onReschedule,
   carWashId,
-  csrfToken,
 }: {
   appointment: Appointment;
   timezone: string;
@@ -756,7 +750,6 @@ function AppointmentStatusActions({
     input: RescheduleInput,
   ) => Promise<boolean>;
   carWashId: string;
-  csrfToken: string;
 }) {
   const [pending, setPending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -821,7 +814,6 @@ function AppointmentStatusActions({
           <RescheduleForm
             appointment={appointment}
             carWashId={carWashId}
-            csrfToken={csrfToken}
             timezone={timezone}
             pending={pending}
             onCancel={() => setRescheduling(false)}
@@ -870,7 +862,6 @@ function statusMessage(status: NextAppointmentStatus) {
 function RescheduleForm({
   appointment,
   carWashId,
-  csrfToken,
   timezone,
   pending,
   onCancel,
@@ -878,7 +869,6 @@ function RescheduleForm({
 }: {
   appointment: Appointment;
   carWashId: string;
-  csrfToken: string;
   timezone: string;
   pending: boolean;
   onCancel: () => void;

@@ -886,6 +886,45 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
     );
   });
 
+  it('desconsidera a própria reserva ao consultar e aplicar um reagendamento sobreposto', async () => {
+    const fixture = await bookingFixture();
+    const receipt = await fixture.book().expect(201);
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-09-11T11:00:00.000Z').getTime());
+
+    await fixture.owner.agent
+      .get(
+        `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/reschedule-availability`,
+      )
+      .query({ date: '2026-09-11' })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.slots).toContainEqual({
+          startsAt: '2026-09-11T12:30:00.000Z',
+          endsAt: '2026-09-11T13:30:00.000Z',
+        });
+      });
+
+    await fixture.owner.agent
+      .patch(
+        `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/reschedule`,
+      )
+      .set('x-csrf-token', fixture.owner.csrfToken)
+      .send({
+        startsAt: '2026-09-11T12:30:00.000Z',
+        requestedAt: '2026-09-11T10:00:00.000Z',
+      })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          id: receipt.body.id,
+          startsAt: '2026-09-11T12:30:00.000Z',
+          endsAt: '2026-09-11T13:30:00.000Z',
+        });
+      });
+  });
+
   it('serializa reagendamento e nova reserva sem liberar ou ocupar parcialmente um box', async () => {
     const fixture = await bookingFixture();
     const receipt = await fixture.book().expect(201);
@@ -927,6 +966,50 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
           : '2026-09-11T12:00:00.000Z',
       status: 'CONFIRMED',
     });
+  });
+
+  it('serializa dois reagendamentos que disputam o mesmo box e horário', async () => {
+    const fixture = await bookingFixture();
+    const first = await fixture.book().expect(201);
+    const second = await fixture
+      .book({
+        ...fixture.input,
+        attemptId: randomUUID(),
+        startsAt: '2026-09-11T13:00:00.000Z',
+      })
+      .expect(201);
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-09-11T11:00:00.000Z').getTime());
+    const reschedule = (appointmentId: string) =>
+      fixture.owner.agent
+        .patch(
+          `/api/car-washes/lavacao-sol/appointments/${appointmentId}/reschedule`,
+        )
+        .set('x-csrf-token', fixture.owner.csrfToken)
+        .send({
+          startsAt: '2026-09-11T14:00:00.000Z',
+          requestedAt: '2026-09-11T10:00:00.000Z',
+        });
+
+    const responses = await Promise.all([
+      reschedule(first.body.id as string),
+      reschedule(second.body.id as string),
+    ]);
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      200, 409,
+    ]);
+
+    const appointments = (await fixture.agenda().expect(200)).body
+      .appointments as Array<{ id: string; startsAt: string; endsAt: string }>;
+    expect(
+      appointments.filter(
+        (appointment) =>
+          appointment.startsAt === '2026-09-11T14:00:00.000Z' &&
+          appointment.endsAt === '2026-09-11T15:00:00.000Z',
+      ),
+    ).toHaveLength(1);
+    expect(appointments).toHaveLength(2);
   });
 
   it('permite à equipe corrigir cliente e veículo e mostra a correção na agenda', async () => {
