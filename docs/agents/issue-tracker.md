@@ -39,6 +39,18 @@ os estados afetados juntos, usando as seguintes evidências:
 | Integrado à main | Commit ancestral de `main`; distinguir a branch local da remota conferida. |
 | Issue concluída | Critérios atendidos e código integrado à `main` remota; fechar como completed. |
 
+As colunas do índice registram fatos independentes. Os snapshots usuais são:
+
+| Situação comprovada | Implementado | Publicado | Main local / GitHub | Issue |
+| --- | --- | --- | --- | --- |
+| Commit revisado apenas local | Sim | Não | Não / Não | Aberta, sem `ready-for-agent` |
+| Branch publicada | Sim | Sim | Não / Não | Aberta; aguarda integração |
+| Merge local com push pendente | Sim | Sim | Sim / Não | Aberta; aguarda push da `main` |
+| Integração remota conferida | Sim | Sim | Sim / Sim | Fechada como concluída |
+
+Combinações diferentes exigem explicação baseada em evidência. A sequência e os
+comandos pertencem somente a `docs/WORKFLOW.md`.
+
 Para entregas comerciais ou operacionais, use as evidências dos critérios da
 própria issue; publicação de código não comprova recrutamento, revisão ou uso real.
 

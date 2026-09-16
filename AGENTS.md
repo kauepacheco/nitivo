@@ -46,6 +46,9 @@ Se os documentos e o código divergirem, não escolha silenciosamente um deles. 
 - Use o número da issue em documentos, branches e novos commits. Ao concluir
   uma entrega ou integrar branches, siga `docs/WORKFLOW.md` e reconcilie o índice
   conforme `docs/agents/issue-tracker.md`, distinguindo estado local e remoto.
+- Antes de declarar uma issue implementada ou concluída, execute o gate de
+  alinhamento de `docs/WORKFLOW.md`; branch, commits, índice, marco e GitHub devem
+  descrever o mesmo estágio com evidência verificável.
 - Crie ADRs apenas para decisões difíceis de reverter, não óbvias e que envolvam uma escolha real entre alternativas.
 - Ao concluir uma implementação solicitada, crie um commit apenas com as mudanças
   pertencentes à tarefa e informe seu hash. Faça push somente após solicitação

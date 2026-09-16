@@ -1,6 +1,6 @@
 # Marco atual
 
-Última atualização: 15 de setembro de 2026.
+Última atualização: 16 de setembro de 2026.
 
 ## Fase
 
@@ -144,17 +144,22 @@ e marcar falta em atendimentos.
   outro tenant e disputa concorrente são recusados; proprietário e funcionário
   ativo podem operar a agenda;
 - a agenda móvel mostra os estados em português e oferece somente as ações
-  permitidas para o estado atual; a jornada cobre iniciar e concluir um encaixe.
+  permitidas para o estado atual; a jornada cobre iniciar e concluir um encaixe
+  e mostra autoria e momento da última mudança;
+- o teste HTTP preserva explicitamente horário, box e estado de outra reserva
+  futura depois das mudanças de estado.
 
 ## Objetivo atual
 
-A referência local `origin/main` aponta para o merge `99c3d1f7`, que integra a
-issue #11. A `main` local foi atualizada por fast-forward até esse mesmo commit
-antes da branch atual. A sincronização remota não foi consultada nesta entrega.
+O GitHub foi consultado em 16 de setembro de 2026: a `main` remota está no merge
+`99c3d1f7`, que integra a issue #11. Seus critérios foram reconciliados e a issue
+foi fechada como concluída, sem o rótulo `ready-for-agent`.
 
 A issue #12 está implementada localmente na branch `feat/12-estados-atendimento`,
-no commit `e6db0916`. Aguarda publicação e integração à `main`; não houve push
-nem alteração remota da issue nesta tarefa. O
+nos commits `e6db0916` e `b049ba38`. Aguarda publicação e integração à `main`;
+não houve push nesta tarefa. No GitHub, os critérios comprovados foram marcados,
+o rótulo `ready-for-agent` foi removido e a issue permanece aberta com essa
+pendência. O
 [índice das issues](specs/tickets-primeiro-piloto-saas.md) distingue esses estados.
 
 Verificações finais da issue #12: lint, tipos e build passaram, assim como 1
