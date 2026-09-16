@@ -4,14 +4,14 @@
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os treze primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os quatorze primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-[Issue #14](https://github.com/kauepacheco/nitivo/issues/14): reagendar sem
-perder a reserva original.
+[Issue #15](https://github.com/kauepacheco/nitivo/issues/15): aplicar exceções,
+bloqueios e desativação de boxes.
 
 ## Concluído
 
@@ -82,8 +82,7 @@ perder a reserva original.
   expediente, boxes ativos, antecedência, horizonte e ocupações persistidas,
   permitindo término exato no fechamento;
 - reduções de expediente ou capacidade exibem reservas futuras conflitantes e
-  não alteram a configuração nem os compromissos; exceções e bloqueios
-  permanecem reservados à issue #15;
+  não alteram a configuração nem os compromissos;
 - jornada móvel permite ao proprietário configurar capacidade e expediente e ao
   cliente consultar horários para o serviço e a data escolhidos.
 
@@ -162,34 +161,33 @@ perder a reserva original.
   Standards/Spec corrigiu a exclusão da própria reserva no cálculo de
   disponibilidade e comprovou a disputa entre reagendamentos antes da validação
   final.
+- proprietário registra fechamentos, horários especiais e bloqueios de um box ou
+  de toda a operação pela interface, e remove essas restrições quando necessário;
+- consulta pública, confirmação, encaixe e reagendamento respeitam exceções,
+  bloqueios e boxes ativos sem mover ou cancelar reservas existentes;
+- conflitos futuros são exibidos no fuso da lavação e impedem a mudança; a mesma
+  trava transacional serializa bloqueio, exceção e desativação de box com cada
+  caminho de reserva;
+- migration preserva o tenant em chaves compostas e valida horários e intervalos;
+  OpenAPI documenta as novas operações;
+- validação final da issue #15: lint, tipos e build passaram, assim como 1 teste
+  unitário, 71 testes HTTP com PostgreSQL real e 12 jornadas de navegador; a
+  revisão Standards/Spec corrigiu um índice redundante, tipou conflitos, aplicou
+  o fuso da lavação na prévia e ampliou a matriz concorrente para 9 combinações.
 
 ## Objetivo atual
 
 O GitHub foi consultado em 16 de setembro de 2026: a `main` remota está em
-`fe9e3ee9`, com as issues #11 e #12 integradas e fechadas.
+`9aabcbc8`, igual à `main` local no início desta entrega e contendo os merges das
+issues #13 e #14. As duas issues continuam abertas com corpos desatualizados; a
+#14 ainda possui `ready-for-agent`. Corrigir esses estados remotos depende de
+autorização para mutar o GitHub e não altera a evidência de integração do código.
 
-A issue #12 está implementada localmente na branch `feat/12-estados-atendimento`,
-nos commits `e6db0916` e `b049ba38`, e integrada à `main` local e remota. Os
-critérios comprovados foram marcados, o rótulo `ready-for-agent` foi removido e
-a issue foi fechada como concluída. O
-[índice das issues](specs/tickets-primeiro-piloto-saas.md) distingue esses estados.
-
-O merge local `d7d155dc` (PR #26) na referência `origin/main` disponível nesta
-máquina inclui a issue #13. A consulta remota atual não pôde ser executada:
-`git fetch origin` falha por chave SSH ausente e `gh` não está instalado. Por
-isso, publicação, estado da issue, comentários e rótulos de #13 permanecem
-marcados como não verificados no índice, apesar do merge observado localmente.
-
-A issue #14 está implementada localmente na branch
-`feat/14-reagendamento-reserva`, nos commits `30906dad` e `7a1d63fa`. Ela não
-está integrada à `main` local; publicação, integração remota e estado da issue
-não foram consultados pelo mesmo bloqueio de acesso.
-
-Verificações finais da issue #13: lint, tipos e build passaram, assim como 1
-teste unitário, 55 testes HTTP com PostgreSQL real e 11 jornadas de navegador.
-
-Verificações finais da issue #12: lint, tipos e build passaram, assim como 1
-teste unitário, 51 testes HTTP com PostgreSQL real e 11 jornadas de navegador.
+A issue #15 está implementada e revisada localmente na branch
+`feat/15-excecoes-bloqueios-boxes`, no commit `9932c993`. A branch não foi
+publicada nem integrada; a issue remota permanece aberta com `ready-for-agent` e
+critérios desmarcados. O [índice das issues](specs/tickets-primeiro-piloto-saas.md)
+distingue implementação local, publicação, integração e estado remoto.
 
 A coleção de 37 skills permanece preservada conforme decisão do proprietário;
 detalhes em [Skills do Nitivo](../.agents/skills/README.md).
@@ -201,15 +199,15 @@ extraídas em `backend/.local/browser-libs`, ignoradas pelo Git.
 
 ## Próximo incremento proposto
 
-Após publicar e integrar a issue #14 e reconciliar remotamente a #13, implementar
-em nova solicitação a issue #15, conforme a sequência do
-[índice do piloto](specs/tickets-primeiro-piloto-saas.md).
+Publicar e integrar a issue #15 somente após solicitação explícita, reconciliar
+os estados remotos das issues #13–#15 e então implementar a issue #16 em nova
+solicitação, conforme o [índice do piloto](specs/tickets-primeiro-piloto-saas.md).
 
 ## Pendências de execução
 
 - recrutar a lavação e combinar as condições dos 14 dias de piloto;
 - conferir custo efetivo em reais antes de provisionar a infraestrutura;
-- implementar e verificar as issues #15 a #23 em sequência;
+- implementar e verificar as issues #16 a #23 em sequência;
 - ensaiar recuperação e cumprir os critérios operacionais e de privacidade antes
   de introduzir dados reais;
 
