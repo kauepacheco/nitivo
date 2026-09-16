@@ -78,3 +78,7 @@ export function formatTime(instant: string, timezone: string) {
     hourCycle: 'h23',
   }).format(new Date(instant));
 }
+
+export function formatLocalDate(date: string) {
+  return `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
+}

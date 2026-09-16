@@ -1,7 +1,7 @@
 # Aplicação do Nitivo
 
 Monólito modular do Nitivo: API NestJS, interface React/Vite e PostgreSQL. Os
-dez primeiros incrementos permitem ao operador provisionar uma lavação, ao
+quinze primeiros incrementos permitem ao operador provisionar uma lavação, ao
 proprietário definir sua senha, administrar um catálogo persistido, convidar ou
 revogar funcionários, recuperar o acesso da equipe de forma assistida e publicar
 os serviços ativos com preço, duração e contato operacional. O proprietário
@@ -10,6 +10,8 @@ horários disponíveis para um serviço no fuso da lavação, confirma a reserva
 recebe um comprovante e pode abrir o resumo no WhatsApp da lavação. Proprietários
 e funcionários consultam a agenda diária e os próximos atendimentos, corrigem
 os dados operacionais e registram encaixes disponíveis com autoria.
+O proprietário consulta ainda indicadores por período, calculados pela data
+prevista, pelo estado atual e pelo preço histórico preservado na reserva.
 
 ## Requisitos
 
@@ -179,6 +181,11 @@ dependem da conferência e do registro pela equipe no Nitivo.
   Persiste cliente, veículo e encaixe na mesma transação, com origem `TEAM`,
   autoria e o nome, preço e duração históricos do serviço.
   Comprovante e agenda usam `Cache-Control: no-store`.
+- `GET /api/car-washes/:carWashId/dashboard?from=AAAA-MM-DD&to=AAAA-MM-DD`:
+  exige vínculo OWNER e retorna concluídos, cancelamentos, faltas e a soma em
+  centavos dos preços históricos dos serviços concluídos. O período usa a data
+  prevista no fuso da lavação; sem filtro, usa o dia local atual. A resposta não
+  contém dados pessoais e usa `Cache-Control: no-store`.
 
 Confirmação, encaixe, reagendamento e mudanças que retiram disponibilidade obtêm
 a mesma trava `FOR UPDATE` na lavação antes de consultar

@@ -1,4 +1,10 @@
-import { api, errorMessage, formatMoney, formatTime } from './api';
+import {
+  api,
+  errorMessage,
+  formatLocalDate,
+  formatMoney,
+  formatTime,
+} from './api';
 import { BookingForm, TeamAgenda } from './Booking';
 import { FormEvent, useEffect, useState } from 'react';
 
@@ -70,6 +76,15 @@ type Availability = {
   date: string;
   timezone: string;
   slots: Array<{ startsAt: string; endsAt: string }>;
+};
+
+type Dashboard = {
+  period: { from: string; to: string; timezone: string };
+  criteria: { date: string; status: string; value: string };
+  completed: number;
+  canceled: number;
+  noShow: number;
+  completedServicesValueInCents: number;
 };
 
 function serviceFormPayload(form: FormData) {
@@ -649,6 +664,7 @@ function OwnerWorkspace({
   const [message, setMessage] = useState('');
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
   const [agendaCatalogRevision, setAgendaCatalogRevision] = useState(0);
+  const [dashboardRevision, setDashboardRevision] = useState(0);
 
   useEffect(() => {
     void api<ServiceOffering[]>(
@@ -752,6 +768,10 @@ function OwnerWorkspace({
         <h1>Serviços da sua lavação</h1>
         <p>Cadastre valores em reais e a duração prevista do atendimento.</p>
       </section>
+      <OwnerDashboard
+        carWashId={membership.carWashId}
+        revision={dashboardRevision}
+      />
       <section className="panel public-profile-panel">
         <h2>Informações públicas</h2>
         <p>Este contato será exibido para clientes na página da lavação.</p>
@@ -843,11 +863,125 @@ function OwnerWorkspace({
         carWashId={membership.carWashId}
         csrfToken={session.csrfToken}
         catalogRevision={agendaCatalogRevision}
+        onAppointmentStatusChanged={() =>
+          setDashboardRevision((current) => current + 1)
+        }
       />
       <SchedulingManagement session={session} membership={membership} />
       <TeamManagement session={session} membership={membership} />
     </main>
   );
+}
+
+function OwnerDashboard({
+  carWashId,
+  revision,
+}: {
+  carWashId: string;
+  revision: number;
+}) {
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [message, setMessage] = useState('Carregando indicadores…');
+
+  async function load(period?: { from: string; to: string }) {
+    const query = period
+      ? `?${new URLSearchParams({ from: period.from, to: period.to })}`
+      : '';
+    const result = await api<Dashboard>(
+      `/api/car-washes/${carWashId}/dashboard${query}`,
+    );
+    setDashboard(result);
+    setFrom(result.period.from);
+    setTo(result.period.to);
+    setMessage('');
+  }
+
+  useEffect(() => {
+    void load(from && to ? { from, to } : undefined).catch((error) =>
+      setMessage(errorMessage(error)),
+    );
+  }, [carWashId, revision]);
+
+  async function update(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage('Atualizando indicadores…');
+    try {
+      await load({ from, to });
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
+  }
+
+  return (
+    <section
+      className="panel dashboard-panel"
+      aria-label="Indicadores operacionais"
+    >
+      <h2>Painel da operação</h2>
+      <form className="dashboard-filter" onSubmit={update}>
+        <label>
+          Início do período
+          <input
+            type="date"
+            value={from}
+            onChange={(event) => setFrom(event.target.value)}
+            required
+          />
+        </label>
+        <label>
+          Fim do período
+          <input
+            type="date"
+            value={to}
+            onChange={(event) => setTo(event.target.value)}
+            required
+          />
+        </label>
+        <button type="submit">Atualizar indicadores</button>
+      </form>
+      {dashboard ? (
+        <>
+          <div className="dashboard-metrics">
+            <p>
+              Concluídos <strong>{dashboard.completed}</strong>
+            </p>
+            <p>
+              Cancelamentos <strong>{dashboard.canceled}</strong>
+            </p>
+            <p>
+              Faltas <strong>{dashboard.noShow}</strong>
+            </p>
+            <p>
+              Serviços concluídos{' '}
+              <strong>
+                {formatMoney(dashboard.completedServicesValueInCents)}
+              </strong>
+            </p>
+          </div>
+          <p>
+            Período: {formatLocalDate(dashboard.period.from)} a{' '}
+            {formatLocalDate(dashboard.period.to)}
+          </p>
+          <p>
+            Critérios: {lowerInitial(dashboard.criteria.date)};{' '}
+            {lowerInitial(dashboard.criteria.status)};{' '}
+            {lowerInitial(dashboard.criteria.value)}.
+          </p>
+          <p>
+            Valor dos serviços concluídos; não representa recebimentos,
+            faturamento fiscal ou lucro.
+          </p>
+        </>
+      ) : null}
+      <Status message={message} />
+    </section>
+  );
+}
+
+function lowerInitial(value: string) {
+  return `${value.charAt(0).toLowerCase()}${value.slice(1)}`;
 }
 
 function SchedulingManagement({

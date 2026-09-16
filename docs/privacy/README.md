@@ -139,3 +139,12 @@ do serviço, e o histórico do reagendamento conserva o box e o período anterio
 para rastreabilidade interna. Esses dados permanecem restritos à agenda do
 tenant; não geram consulta pública nem são enviados aos logs. Retenção e
 exercício de direitos continuam pendentes antes do uso de dados reais.
+
+## Indicadores operacionais implementados (issue #16)
+
+Somente o proprietário com vínculo ativo consulta os indicadores da própria
+lavação; funcionários, visitantes e integrantes de outro tenant não acessam a
+operação. A resposta agrega quantidades e o valor histórico em centavos dos
+serviços concluídos por período, sem retornar nome, telefone, placa ou outros
+dados pessoais dos clientes. O endpoint usa `Cache-Control: no-store`, filtra o
+tenant no servidor e os testes utilizam somente fixtures fictícias.

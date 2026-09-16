@@ -21,6 +21,9 @@ antecedência reservada ao autoagendamento. A equipe pode iniciar, concluir e
 marcar falta, conferindo na agenda a autoria e o momento da última mudança.
 O proprietário também configura fechamentos, horários especiais e bloqueios por
 box ou gerais; conflitos futuros são mostrados sem alterar os compromissos.
+Também consulta por período os atendimentos concluídos, cancelamentos, faltas e
+o valor histórico dos serviços concluídos, sem tratar essa soma como recebimento
+ou lucro.
 As funcionalidades abaixo descrevem o produto
 planejado; o estado de implementação está no
 [marco atual](docs/CURRENT_MILESTONE.md).

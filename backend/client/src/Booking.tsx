@@ -268,10 +268,12 @@ export function TeamAgenda({
   carWashId,
   csrfToken,
   catalogRevision = 0,
+  onAppointmentStatusChanged,
 }: {
   carWashId: string;
   csrfToken: string;
   catalogRevision?: number;
+  onAppointmentStatusChanged?: () => void;
 }) {
   const [date, setDate] = useState('');
   const [agenda, setAgenda] = useState<Agenda | null>(null);
@@ -422,6 +424,7 @@ export function TeamAgenda({
         setMessage(errorMessage(error));
       return false;
     }
+    onAppointmentStatusChanged?.();
     if (activeAgendaView.current !== targetAgendaView) return true;
     try {
       const query = date ? `?date=${encodeURIComponent(date)}` : '';
