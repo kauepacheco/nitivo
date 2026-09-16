@@ -421,6 +421,9 @@ test('equipe registra encaixe pela agenda no celular', async ({ page }) => {
   await appointment.getByRole('button', { name: 'Concluir atendimento' }).click();
   await expect(page.getByText('Atendimento concluído.')).toBeVisible();
   await expect(appointment).toContainText('Concluído');
+  await expect(appointment).toContainText(
+    /Última mudança: dona\.horizonte@example\.test em \d{2}\/\d{2}\/\d{4} às \d{2}:\d{2}/,
+  );
 });
 
 const weekdayLabels = [

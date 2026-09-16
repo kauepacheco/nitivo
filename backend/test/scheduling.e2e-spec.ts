@@ -465,6 +465,13 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
   it('permite à equipe iniciar, concluir ou marcar falta com autoria, sem mover a agenda', async () => {
     const fixture = await bookingFixture();
     const receipt = await fixture.book().expect(201);
+    const future = await fixture
+      .book({
+        ...fixture.input,
+        attemptId: randomUUID(),
+        startsAt: '2026-09-11T14:00:00.000Z',
+      })
+      .expect(201);
     const path = `/api/car-washes/lavacao-sol/appointments/${receipt.body.id}/status`;
     const ownerB = await authenticatedOwner(database, app, {
       carWashId: 'lavacao-lua',
@@ -527,6 +534,16 @@ describe('Configuração da agenda e disponibilidade (e2e)', () => {
       .expect((response) =>
         expect(response.body).toEqual(expect.objectContaining({ status: 'NO_SHOW' })),
       );
+
+    const preservedFuture = (await fixture.agenda().expect(200)).body.appointments.find(
+      (appointment: { id: string }) => appointment.id === future.body.id,
+    );
+    expect(preservedFuture).toMatchObject({
+      startsAt: '2026-09-11T14:00:00.000Z',
+      endsAt: '2026-09-11T15:00:00.000Z',
+      status: 'CONFIRMED',
+      box: { name: 'Box 0' },
+    });
 
     const client = database.client();
     await client.connect();

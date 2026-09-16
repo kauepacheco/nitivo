@@ -229,6 +229,8 @@ type Appointment = {
   serviceDurationInMinutes: number;
   origin: string;
   createdBy: { id: string; user: { email: string } } | null;
+  statusChangedBy: { id: string; user: { email: string } } | null;
+  statusChangedAt: string | null;
   customer: { name: string; phone: string } | null;
   vehicle: { plate: string } | null;
   box: { name: string };
@@ -595,6 +597,13 @@ function AppointmentList({
             appointment={appointment}
             onChangeStatus={onChangeStatus}
           />
+          {appointment.statusChangedBy && appointment.statusChangedAt ? (
+            <p>
+              Última mudança: {appointment.statusChangedBy.user.email} em{' '}
+              {formatDate(appointment.statusChangedAt, timezone)} às{' '}
+              {formatTime(appointment.statusChangedAt, timezone)}
+            </p>
+          ) : null}
           {appointment.origin === 'TEAM' ? (
             <p>
               Encaixe da equipe
