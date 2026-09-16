@@ -129,3 +129,13 @@ autoria e o instante em que a equipe efetivou o cancelamento. Esses dados ficam
 restritos à agenda do tenant; não criam consulta pública da reserva nem são
 encaminhados aos logs. Retenção e exercício de direitos continuam pendentes
 antes do uso de dados reais.
+
+## Reagendamento assistido implementado (issue #14)
+
+A equipe autenticada e vinculada registra somente o instante informado do pedido
+e a autoria e o instante em que efetiva o reagendamento. A conversa do WhatsApp
+não é copiada nem lida. O histórico da reserva preserva nome, preço e duração
+do serviço, e o histórico do reagendamento conserva o box e o período anterior
+para rastreabilidade interna. Esses dados permanecem restritos à agenda do
+tenant; não geram consulta pública nem são enviados aos logs. Retenção e
+exercício de direitos continuam pendentes antes do uso de dados reais.

@@ -28,8 +28,8 @@ issues #11 e #12 integradas e fechadas.
 | [#10](https://github.com/kauepacheco/nitivo/issues/10) | Sim | Sim | Sim / Sim | Fechada | `efd44a54`, `e86405b3` |
 | [#11](https://github.com/kauepacheco/nitivo/issues/11) | Sim | Sim | Sim / Sim | Fechada | `10c616ca`, `37edd93c`, merge `99c3d1f7` |
 | [#12](https://github.com/kauepacheco/nitivo/issues/12) | Sim | Sim | Sim / Sim | Fechada | `e6db0916`, `b049ba38`, integração `fe9e3ee9` |
-| [#13](https://github.com/kauepacheco/nitivo/issues/13) | Sim | Não | Não / Não | Aberta; publicação e integração pendentes | `51e7cdd3`, `b62b0496`, `1e9874d1` |
-| [#14](https://github.com/kauepacheco/nitivo/issues/14) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
+| [#13](https://github.com/kauepacheco/nitivo/issues/13) | Sim | Não verificado | Sim / Não verificado | Não verificada; reconciliar no GitHub | `51e7cdd3`, `b62b0496`, `1e9874d1`, merge local em `d7d155dc` |
+| [#14](https://github.com/kauepacheco/nitivo/issues/14) | Sim | Não | Não / Não | Aberta; publicação e integração pendentes | `30906dad` |
 | [#15](https://github.com/kauepacheco/nitivo/issues/15) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#16](https://github.com/kauepacheco/nitivo/issues/16) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#17](https://github.com/kauepacheco/nitivo/issues/17) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
@@ -200,8 +200,8 @@ As dependências representam entregas necessárias; dados fictícios permitem ve
 
 **Histórias da especificação:** 16, 33, 34, 35, 38, 39, 43.
 
-- [ ] Separar horário informado do pedido e horário da ação; pedido enviado no prazo continua elegível quando atendido depois. Exceção da equipe admite motivo opcional.
-- [ ] Guardar autoria; estado final não reabre; cancelamento e liberação são atômicos, incluindo concorrência com outras ações sobre a reserva.
+- [x] Separar horário informado do pedido e horário da ação; pedido enviado no prazo continua elegível quando atendido depois. Exceção da equipe admite motivo opcional.
+- [x] Guardar autoria; estado final não reabre; cancelamento e liberação são atômicos, incluindo concorrência com outras ações sobre a reserva.
 
 ## Issue #14 — Reagendar sem perder a reserva original
 
@@ -213,8 +213,8 @@ As dependências representam entregas necessárias; dados fictícios permitem ve
 
 **Histórias da especificação:** 17, 34, 36, 37, 43.
 
-- [ ] Preservar serviço, nome, preço e duração históricos; registrar solicitação separada da ação e autoria. Troca de serviço exige cancelar e reservar novamente.
-- [ ] Testar falha e concorrência com outra reserva ou reagendamento; sem ocupação duplicada ou liberação parcial. Exceções operacionais adicionais entram na issue #15.
+- [x] Preservar serviço, nome, preço e duração históricos; registrar solicitação separada da ação e autoria. Troca de serviço exige cancelar e reservar novamente.
+- [x] Testar falha e concorrência com outra reserva ou reagendamento; sem ocupação duplicada ou liberação parcial. Exceções operacionais adicionais entram na issue #15.
 
 ## Issue #15 — Aplicar exceções, bloqueios e desativação de boxes
 

@@ -4,14 +4,14 @@
 
 ## Fase
 
-Construção e validação do primeiro piloto comercial iniciadas. Os onze primeiros
+Construção e validação do primeiro piloto comercial iniciadas. Os treze primeiros
 incrementos verticais foram implementados; ainda não há ambiente publicado nem
 uso de dados reais.
 
 ## Marco
 
-[Issue #13](https://github.com/kauepacheco/nitivo/issues/13): cancelar após
-conferência da solicitação.
+[Issue #14](https://github.com/kauepacheco/nitivo/issues/14): reagendar sem
+perder a reserva original.
 
 ## Concluído
 
@@ -148,6 +148,19 @@ conferência da solicitação.
   e mostra autoria e momento da última mudança;
 - o teste HTTP preserva explicitamente horário, box e estado de outra reserva
   futura depois das mudanças de estado.
+- equipe autentica e confere o pedido antes de reagendar uma reserva confirmada;
+  a disponibilidade usa a duração histórica mesmo se o serviço tiver mudado ou
+  sido desativado no catálogo;
+- reagendamento troca horário e escolhe box disponível atomicamente, preservando
+  nome, preço e duração históricos; falha ou disputa com nova reserva mantém a
+  reserva original sem liberação parcial ou duplicação;
+- migration registra pedido, período e box anteriores, autoria e instante da
+  ação com chaves compostas no tenant; a agenda móvel exibe o pedido e quem
+  efetivou a troca;
+- validação final da issue #14: lint, tipos, build, 1 teste unitário, 58 testes
+  HTTP com PostgreSQL real e 11 jornadas de navegador passaram; a revisão local
+  Standards/Spec corrigiu o cálculo pela duração atual do catálogo e a asserção
+  concorrente antes da validação final.
 
 ## Objetivo atual
 
@@ -160,12 +173,15 @@ critérios comprovados foram marcados, o rótulo `ready-for-agent` foi removido 
 a issue foi fechada como concluída. O
 [índice das issues](specs/tickets-primeiro-piloto-saas.md) distingue esses estados.
 
-A issue #13 está implementada localmente na branch
-`feat/13-cancelamento-solicitacao`, nos commits `51e7cdd3`, `b62b0496` e
-`1e9874d1`, mas ainda não foi
-publicada nem integrada à `main`. O índice registra `Sim / Não / Não / Não`;
-a issue remota permanece aberta, sem rótulo de triagem, com os critérios
-comprovados marcados e a pendência de publicação registrada.
+O merge local `d7d155dc` (PR #26) na referência `origin/main` disponível nesta
+máquina inclui a issue #13. A consulta remota atual não pôde ser executada:
+`git fetch origin` falha por chave SSH ausente e `gh` não está instalado. Por
+isso, publicação, estado da issue, comentários e rótulos de #13 permanecem
+marcados como não verificados no índice, apesar do merge observado localmente.
+
+A issue #14 está implementada localmente na branch
+`feat/14-reagendamento-reserva`, no commit `30906dad`. Ainda não foi publicada
+nem integrada; a issue remota não foi consultada pelo mesmo bloqueio de acesso.
 
 Verificações finais da issue #13: lint, tipos e build passaram, assim como 1
 teste unitário, 55 testes HTTP com PostgreSQL real e 11 jornadas de navegador.
@@ -183,8 +199,9 @@ extraídas em `backend/.local/browser-libs`, ignoradas pelo Git.
 
 ## Próximo incremento proposto
 
-Após publicar e integrar a issue #13, implementar em nova solicitação a issue
-#14, conforme a sequência do [índice do piloto](specs/tickets-primeiro-piloto-saas.md).
+Após publicar e integrar a issue #14 e reconciliar remotamente a #13, implementar
+em nova solicitação a issue #15, conforme a sequência do
+[índice do piloto](specs/tickets-primeiro-piloto-saas.md).
 
 ## Pendências de execução
 
