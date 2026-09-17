@@ -13,6 +13,8 @@ import {
   SchedulingController,
 } from './scheduling.controller';
 import { SchedulingService } from './scheduling.service';
+import { DashboardController } from './dashboard.controller';
+import { DashboardService } from './dashboard.service';
 
 @Module({
   imports: [IdentityAccessModule],
@@ -22,12 +24,14 @@ import { SchedulingService } from './scheduling.service';
     SchedulingController,
     BoxesController,
     PublicAvailabilityController,
+    DashboardController,
   ],
   providers: [
     SchedulingService,
     BookingService,
     TeamMembershipGuard,
     BookingThrottleGuard,
+    DashboardService,
   ],
 })
 export class SchedulingModule {}

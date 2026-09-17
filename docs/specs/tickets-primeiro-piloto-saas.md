@@ -31,8 +31,8 @@ etapas anteriores e aguardam reconciliação autorizada.
 | [#12](https://github.com/kauepacheco/nitivo/issues/12) | Sim | Sim | Sim / Sim | Fechada | `e6db0916`, `b049ba38`, integração `fe9e3ee9` |
 | [#13](https://github.com/kauepacheco/nitivo/issues/13) | Sim | Sim | Sim / Sim | Aberta; corpo e fechamento pendentes no GitHub | `51e7cdd3`, `b62b0496`, `1e9874d1`, merge `d7d155dc` |
 | [#14](https://github.com/kauepacheco/nitivo/issues/14) | Sim | Sim | Sim / Sim | Aberta com `ready-for-agent`; critérios, rótulo e fechamento pendentes no GitHub | `30906dad`, `7a1d63fa`, merge `9aabcbc8` |
-| [#15](https://github.com/kauepacheco/nitivo/issues/15) | Sim | Não | Não / Não | Aberta com `ready-for-agent`; publicação e reconciliação pendentes | `9932c993` |
-| [#16](https://github.com/kauepacheco/nitivo/issues/16) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
+| [#15](https://github.com/kauepacheco/nitivo/issues/15) | Sim | Sim | Sim / Não verificado | Estado remoto não verificado nesta sessão | `9932c993`, `421ac481`, merge `a6695127` |
+| [#16](https://github.com/kauepacheco/nitivo/issues/16) | Sim | Não | Não / Não | Estado remoto não verificado; publicação pendente | `8f4a4e39` |
 | [#17](https://github.com/kauepacheco/nitivo/issues/17) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#18](https://github.com/kauepacheco/nitivo/issues/18) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
 | [#19](https://github.com/kauepacheco/nitivo/issues/19) | Não | Não | Não / Não | Aberta; aguarda solicitação | — |
@@ -240,8 +240,8 @@ As dependências representam entregas necessárias; dados fictícios permitem ve
 
 **Histórias da especificação:** 57, 58, 59, 60, 61.
 
-- [ ] Usar data prevista, estado atual e preços históricos; exibir período e distinguir serviços concluídos de recebimentos ou lucro.
-- [ ] Fixtures com datas, estados e preços diferentes comprovam cálculo no fuso local; funcionário e outro tenant não acessam indicadores.
+- [x] Usar data prevista, estado atual e preços históricos; exibir período e distinguir serviços concluídos de recebimentos ou lucro.
+- [x] Fixtures com datas, estados e preços diferentes comprovam cálculo no fuso local; funcionário e outro tenant não acessam indicadores.
 
 ## Issue #17 — Implantar demonstração reproduzível com monitoramento
 

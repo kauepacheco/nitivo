@@ -157,6 +157,31 @@ button:hover {
 .public-profile-panel {
   margin-bottom: 24px;
 }
+.dashboard-panel {
+  margin-bottom: 24px;
+}
+.dashboard-filter {
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+}
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+.dashboard-metrics p {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  background: #f4f7f5;
+}
+.dashboard-metrics strong {
+  color: #154f37;
+  font-size: 22px;
+}
 .availability-panel {
   margin-top: 24px;
 }
@@ -352,7 +377,9 @@ header > div:last-child {
     grid-template-columns: 1fr;
   }
   .scheduling-columns,
-  .policy-grid {
+  .policy-grid,
+  .dashboard-filter,
+  .dashboard-metrics {
     grid-template-columns: 1fr;
   }
   .weekday {

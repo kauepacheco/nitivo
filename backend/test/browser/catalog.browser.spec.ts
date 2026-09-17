@@ -141,6 +141,69 @@ test('proprietário cadastra, edita e desativa um serviço no celular', async ({
   await expect(page.getByText('Lavagem premium')).not.toBeVisible();
 });
 
+test('proprietário consulta indicadores operacionais por período no celular', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const setupLink = provisionOwner({
+    baseUrl,
+    carWashName: 'Lavação Horizonte',
+    slug: 'lavacao-horizonte',
+    email: 'dona.horizonte@example.test',
+  });
+  await page.goto(setupLink);
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Definir senha' }).click();
+  await page.getByLabel('E-mail').fill('dona.horizonte@example.test');
+  await page.getByLabel('Senha').fill('Senha-ficticia-123!');
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Serviços da sua lavação' }),
+  ).toBeVisible();
+
+  const today = futureDateInSaoPaulo(0);
+  const yesterday = futureDateInSaoPaulo(-1);
+  await seedBrowserDashboard(database, today, yesterday);
+  await page.reload();
+
+  const dashboard = page.getByLabel('Indicadores operacionais');
+  await expect(
+    dashboard.getByRole('heading', { name: 'Painel da operação' }),
+  ).toBeVisible();
+  await expect(dashboard.getByText('Concluídos 1')).toBeVisible();
+  await expect(dashboard.getByText('Cancelamentos 1')).toBeVisible();
+  await expect(dashboard.getByText('Faltas 0')).toBeVisible();
+  await expect(dashboard.getByText('R$ 75,00')).toBeVisible();
+  await expect(
+    dashboard.getByText(
+      'Valor dos serviços concluídos; não representa recebimentos, faturamento fiscal ou lucro.',
+    ),
+  ).toBeVisible();
+
+  await dashboard.getByLabel('Início do período').fill(yesterday);
+  await dashboard
+    .getByRole('button', { name: 'Atualizar indicadores' })
+    .click();
+  await expect(dashboard.getByText('Faltas 1')).toBeVisible();
+  await expect(
+    dashboard.getByText(
+      `Período: ${formatExpectedDate(yesterday)} a ${formatExpectedDate(today)}`,
+    ),
+  ).toBeVisible();
+  await expect(
+    dashboard.getByText(
+      'Critérios: data prevista do atendimento no fuso da lavação; estado atual do agendamento; preços históricos dos serviços concluídos.',
+    ),
+  ).toBeVisible();
+  await page
+    .getByLabel('Agenda diária')
+    .getByRole('listitem')
+    .filter({ hasText: 'Confirmado' })
+    .getByRole('button', { name: 'Marcar falta' })
+    .click();
+  await expect(dashboard.getByText('Faltas 2')).toBeVisible();
+});
+
 test('cliente consulta serviços ativos e contato da lavação no celular', async ({
   page,
 }) => {
@@ -539,6 +602,61 @@ function futureDateInSaoPaulo(days: number) {
     Date.UTC(part('year'), part('month') - 1, part('day') + days),
   );
   return date.toISOString().slice(0, 10);
+}
+
+async function seedBrowserDashboard(
+  testDatabase: TestDatabase,
+  today: string,
+  yesterday: string,
+) {
+  const client = testDatabase.client();
+  await client.connect();
+  try {
+    const carWash = await client.query<{ id: string }>(
+      'SELECT id FROM "CarWash" WHERE slug = $1',
+      ['lavacao-horizonte'],
+    );
+    const carWashId = carWash.rows[0].id;
+    await client.query(
+      'INSERT INTO "ServiceOffering" (id, "carWashId", name, "priceInCents", "durationInMinutes") VALUES ($1, $2, $3, $4, $5)',
+      ['servico-painel-browser', carWashId, 'Lavagem painel', 9_900, 60],
+    );
+    await client.query(
+      'INSERT INTO "Box" (id, "carWashId", name) VALUES ($1, $2, $3)',
+      ['box-painel-browser', carWashId, 'Box painel'],
+    );
+    const fixtures = [
+      ['concluido-browser', today, '15:00:00.000Z', 'COMPLETED', 7_500],
+      ['cancelado-browser', today, '16:00:00.000Z', 'CANCELED', 8_000],
+      ['falta-browser', yesterday, '17:00:00.000Z', 'NO_SHOW', 9_000],
+      ['confirmado-browser', today, '18:00:00.000Z', 'CONFIRMED', 6_000],
+    ] as const;
+    for (const [id, date, time, status, price] of fixtures) {
+      await client.query(
+        `INSERT INTO "Appointment" (id, "carWashId", "boxId", "serviceOfferingId", "startsAt", "endsAt", "serviceName", "servicePriceInCents", "serviceDurationInMinutes", status)
+         VALUES ($1, $2, $3, $4, $5, $5::timestamptz + interval '1 hour', $6, $7, $8, $9)`,
+        [
+          id,
+          carWashId,
+          'box-painel-browser',
+          'servico-painel-browser',
+          `${date}T${time}`,
+          'Lavagem histórica',
+          price,
+          60,
+          status,
+        ],
+      );
+    }
+  } finally {
+    await client.end();
+  }
+}
+
+function formatExpectedDate(date: string) {
+  return new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(
+    new Date(`${date}T12:00:00.000Z`),
+  );
 }
 
 test('troca de lavação só permite salvar o contato depois de carregar o perfil correto', async ({
